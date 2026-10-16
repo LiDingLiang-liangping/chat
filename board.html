@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多人画板（附带侧边迷你聊天）</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
+body{padding:10px;}
+.wrapper{display:flex;gap:12px;max-width:1200px;margin:0 auto;flex-wrap:wrap}
+.left-panel{flex:1;min-width:320px}
+#ui{margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+canvas{
+  border:2px solid #333;
+  background:#fff;
+  touch-action:none;
+  width:100%;
+  max-width:800px;
+  display:block;
+}
+button,input{padding:6px 8px;font-size:14px}
+#status{margin-left:10px;color:#226;font-size:13px}
+
+.right-chat{
+  width:280px;max-width:100%;
+  display:flex;flex-direction:column;
+  border:1px solid #aaa;
+  height:560px;max-height:70vh;
+}
+#miniChatBox{
+  flex-grow:1;
+  overflow-y:auto;padding:6px;background:#fdfdfd;
+}
+.mini-msg{font-size:13px;margin:3px 0;line-height:1.3;word-break:break-all}
+.mini-msg-self{color:#0066cc}
+.mini-msg-other{color:#222}
+.mini-msg-system{color:#777;font-style:italic}
+.mini-time{font-size:11px;color:#777}
+.mini-input-area{display:flex;gap:4px;padding:6px}
+#miniMsgInput{flex:1;padding:4px;font-size:13px}
+#miniSendBtn{padding:4px 6px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="left-panel">
+    <div id="ui">
+      <input id="roomInput" placeholder="房间ID" value="Draw 1" style="width:110px">
+      <input id="boardNameInput" placeholder="你的昵称" style="width:100px">
+      <button id="createBtn">创建画板房间(主机)</button>
+      <button id="joinBtn">加入画板房间</button>
+      <label>颜色：<input type="color" id="colorPicker" value="#000000" style="width:50px;padding:2px"></label>
+      <button id="clearBtn">清空(主机)</button>
+      <span id="status">等待操作</span>
+    </div>
+    <canvas id="canvas" width="800" height="500"></canvas>
+  </div>
+
+  <div class="right-chat">
+    <div id="miniChatBox"></div>
+    <div class="mini-input-area">
+      <input id="miniMsgInput" placeholder="画板内发消息">
+      <button id="miniSendBtn">发送</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const roomInput = document.getElementById('roomInput');
+const boardNameInput = document.getElementById('boardNameInput');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const colorPicker = document.getElementById('colorPicker');
+const clearBtn = document.getElementById('clearBtn');
+
+const miniChatBox = document.getElementById('miniChatBox');
+const miniMsgInput = document.getElementById('miniMsgInput');
+const miniSendBtn = document.getElementById('miniSendBtn');
+
+const urlParams = new URLSearchParams(window.location.search);
+const roomParam = urlParams.get('room');
+const nameParam = urlParams.get('name');
+if(roomParam) roomInput.value = roomParam;
+if(nameParam) boardNameInput.value = nameParam;
+
+let peer;
+let isHost = false;
+let roomId;
+let myName = "";
+let connections = new Map();
+let eventList = [];
+let nextSeq = 1;
+
+let myStrokeId = null;
+let isDrawing = false;
+const strokeLastPoint = new Map();
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function formatTime(date){
+  const h = String(date.getHours()).padStart(2,"0");
+  const m = String(date.getMinutes()).padStart(2,"0");
+  const s = String(date.getSeconds()).padStart(2,"0");
+  return `${h}:${m}:${s}`;
+}
+
+function addMiniMsg(time, name, text, type="mini-msg-other"){
+  const div = document.createElement("div");
+  div.className = `mini-msg ${type}`;
+  div.innerHTML = `<span class="mini-time">[${time}]</span>【${esc(name)}】${esc(text)}`;
+  miniChatBox.appendChild(div);
+  miniChatBox.scrollTop = miniChatBox.scrollHeight;
+}
+function addMiniSystemMsg(text){
+  const div = document.createElement("div");
+  div.className = "mini-msg mini-msg-system";
+  div.textContent = text;
+  miniChatBox.appendChild(div);
+  miniChatBox.scrollTop = miniChatBox.scrollHeight;
+}
+
+function sendMiniChat(content){
+  if(!content.trim()) return;
+  const msgData = {msgType:"miniChat", name:myName, text:content.trim()};
+  if(isHost) hostReceiveBoardMsg(msgData);
+  else{
+    const hostConn = connections.get(roomId);
+    if(hostConn && hostConn.open) hostConn.send(msgData);
+  }
+  miniMsgInput.value="";
+}
+
+function hostReceiveBoardMsg(rawMsg){
+  const timeStr = formatTime(new Date());
+  const fullMsg = {...rawMsg, time:timeStr};
+  if(fullMsg.msgType === "miniChat") addMiniMsg(timeStr, fullMsg.name, fullMsg.text, fullMsg.name===myName?"mini-msg-self":"mini-msg-other");
+  if(fullMsg.type === "drawPoint" || fullMsg.type === "clearCanvas") renderEvent(fullMsg);
+  for(const [id,conn] of connections) if(conn.open) conn.send(fullMsg);
+}
+
+function getPosFromEvent(e){
+  const rect = canvas.getBoundingClientRect();
+  if(e.touches){
+    const touch = e.touches[0];
+    return {x:(touch.clientX-rect.left)*(canvas.width/rect.width), y:(touch.clientY-rect.top)*(canvas.height/rect.height)};
+  }else{
+    return {x:(e.clientX-rect.left)*(canvas.width/rect.width), y:(e.clientY-rect.top)*(canvas.height/rect.height)};
+  }
+}
+
+canvas.onmousedown = (e)=> startDraw(getPosFromEvent(e));
+canvas.onmousemove = (e)=> moveDraw(getPosFromEvent(e));
+canvas.onmouseup = canvas.onmouseleave = ()=> endDraw();
+
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); startDraw(getPosFromEvent(e)); }, {passive:false});
+canvas.addEventListener('touchmove', (e)=>{ e.preventDefault(); moveDraw(getPosFromEvent(e)); }, {passive:false});
+canvas.addEventListener('touchend', (e)=>{ e.preventDefault(); endDraw(); }, {passive:false});
+
+function startDraw(p){
+  isDrawing = true;
+  myStrokeId = crypto.randomUUID();
+  strokeLastPoint.set(myStrokeId, p);
+  const evt = {type:"drawPoint", strokeId:myStrokeId, x:p.x, y:p.y, color:colorPicker.value, lineWidth:3, isStrokeEnd:false};
+  sendDrawEvent(evt);
+  if(!isHost) renderEvent(evt);
+}
+function moveDraw(p){
+  if(!isDrawing) return;
+  const evt = {type:"drawPoint", strokeId:myStrokeId, x:p.x, y:p.y, color:colorPicker.value, lineWidth:3, isStrokeEnd:false};
+  sendDrawEvent(evt);
+  if(!isHost) renderEvent(evt);
+  strokeLastPoint.set(myStrokeId, p);
+}
+function endDraw(){
+  if(!isDrawing) return;
+  isDrawing = false;
+  const evt = {type:"drawPoint", strokeId:myStrokeId, isStrokeEnd:true};
+  sendDrawEvent(evt);
+  if(!isHost) renderEvent(evt);
+  strokeLastPoint.delete(myStrokeId);
+  myStrokeId=null;
+}
+
+function sendDrawEvent(evt){
+  if(isHost) hostReceiveBoardMsg(evt);
+  else{
+    const hostConn = connections.get(roomId);
+    if(hostConn && hostConn.open) hostConn.send(evt);
+    else statusEl.textContent = "未连接画板主机";
+  }
+}
+
+function renderEvent(e){
+  if(e.type === "clearCanvas"){ ctx.clearRect(0,0,canvas.width,canvas.height); strokeLastPoint.clear(); return; }
+  if(e.type !== "drawPoint") return;
+  const sid = e.strokeId;
+  if(e.isStrokeEnd){ strokeLastPoint.delete(sid); return; }
+  const last = strokeLastPoint.get(sid);
+  if(!last){ strokeLastPoint.set(sid, {x:e.x, y:e.y}); return; }
+  ctx.beginPath();
+  ctx.lineCap="round";
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth = e.lineWidth;
+  ctx.moveTo(last.x, last.y);
+  ctx.lineTo(e.x, e.y);
+  ctx.stroke();
+  strokeLastPoint.set(sid, {x:e.x, y:e.y});
+}
+
+clearBtn.onclick = ()=>{
+  if(!isHost){ alert("只有主机可以清空画布！"); return; }
+  hostReceiveBoardMsg({type:"clearCanvas"});
+};
+
+createBtn.onclick = ()=>{
+  roomId = roomInput.value.trim();
+  myName = boardNameInput.value.trim();
+  if(!roomId || !myName) return alert("填写房间ID和昵称！");
+  isHost = true;
+  statusEl.textContent = `✅ 画板主机，房间:${roomId}`;
+  peer = new Peer(roomId);
+  peer.on('open',()=>{ addMiniSystemMsg("✅ 画板房间创建成功"); });
+  peer.on('error', err=>{ alert("画板Peer错误:" + err); statusEl.textContent="画板主机出错"; });
+  peer.on('connection',conn=>{
+    connections.set(conn.peer, conn);
+    addMiniSystemMsg(`📢 新用户加入画板，在线：${connections.size}人`);
+    statusEl.textContent = `✅ 画板主机在线人数：${connections.size}`;
+    conn.on('data', data=> hostReceiveBoardMsg(data));
+    conn.on('close',()=>{
+      connections.delete(conn.peer);
+      addMiniSystemMsg(`📢 用户离开画板，在线：${connections.size}人`);
+      statusEl.textContent = `✅ 画板主机在线人数：${connections.size}`;
+    });
+  });
+};
+
+joinBtn.onclick = ()=>{
+  roomId = roomInput.value.trim();
+  myName = boardNameInput.value.trim();
+  if(!roomId || !myName) return alert("填写房间ID和昵称！");
+  isHost = false;
+  statusEl.textContent = "🔄 正在连接画板主机...";
+  peer = new Peer();
+  peer.on('open',()=>{
+    const conn = peer.connect(roomId,{serialization:"json", reliable:true});
+    connections.set(roomId, conn);
+    conn.on('open',()=>{ statusEl.textContent="✅ 画板已连接，可以绘画和聊天"; addMiniSystemMsg("✅ 成功进入画板房间"); });
+    conn.on('data',data=>{
+      if(data.msgType === "miniChat") addMiniMsg(data.time, data.name, data.text, data.name===myName?"mini-msg-self":"mini-msg-other");
+      if(data.type === "drawPoint" || data.type === "clearCanvas") renderEvent(data);
+    });
+    conn.on('close',()=>{ addMiniSystemMsg("❌ 画板连接断开"); statusEl.textContent="❌ 画板断开连接"; });
+    conn.on('error',err=>{ alert("画板连接失败:"+err); statusEl.textContent="❌ 画板连接失败"; });
+  });
+  peer.on('error',err=>{ alert("画板Peer初始化失败:"+err); statusEl.textContent="❌ Peer初始化失败"; });
+};
+
+miniSendBtn.onclick = ()=> sendMiniChat(miniMsgInput.value);
+miniMsgInput.addEventListener("keydown",e=>{ if(e.key === "Enter") sendMiniChat(miniMsgInput.value); });
+</script>
+</body>
+</html>

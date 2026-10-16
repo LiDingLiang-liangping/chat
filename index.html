@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P 聊天室（支持 #画板 #狼人杀 链接）</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
+body{padding:12px;max-width:850px;margin:0 auto}
+#ui{margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#chatBox{
+  border:1px solid #999;
+  height:46vh;min-height:320px;
+  overflow-y:auto;
+  padding:8px;
+  margin-bottom:10px;
+  background:#fff;
+}
+.msg{margin:4px 0;line-height:1.4}
+.msg-self{color:#0066cc}
+.msg-other{color:#222}
+.msg-system{color:#888;font-style:italic}
+.time{font-size:0.8em;color:#777;margin-right:6px}
+a.board-link{color:#0055dd;text-decoration:underline;font-weight:bold}
+a.wolf-link{color:#cc3300;text-decoration:underline;font-weight:bold}
+a:hover{color:#dd3333}
+#inputArea{display:flex;gap:8px}
+#msgInput{flex:1;padding:8px;font-size:16px}
+button{padding:8px 12px;font-size:14px}
+#status{color:#226;font-size:13px}
+small.hint{color:#999}
+</style>
+</head>
+<body>
+<div id="ui">
+  <input id="nameInput" placeholder="输入你的昵称" />
+  <input id="roomInput" placeholder="房间ID" value="Chat 1">
+  <button id="createBtn">创建房间(主机)</button>
+  <button id="joinBtn">加入房间</button>
+  <button id="notifyBtn">开启消息通知</button>
+  <span id="status">等待操作</span>
+</div>
+
+<div id="chatBox"></div>
+
+<div id="inputArea">
+  <input id="msgInput" placeholder="输入消息，含 #画板 或 #狼人杀 会生成链接" />
+  <button id="sendBtn">发送</button>
+</div>
+<p class="hint">💡 发送包含 <b>#画板</b> 生成画板链接，包含 <b>#狼人杀</b> 生成狼人杀链接，链接自动带房间号和你的昵称。</p>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+const chatBox = document.getElementById('chatBox');
+const nameInput = document.getElementById('nameInput');
+const roomInput = document.getElementById('roomInput');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const statusEl = document.getElementById('status');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const notifyBtn = document.getElementById('notifyBtn');
+
+let peer;
+let isHost = false;
+let roomId;
+let myName = "";
+let connections = new Map();
+let notificationEnabled = false;
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function formatTime(date){
+  const h = String(date.getHours()).padStart(2,"0");
+  const m = String(date.getMinutes()).padStart(2,"0");
+  const s = String(date.getSeconds()).padStart(2,"0");
+  return `${h}:${m}:${s}`;
+}
+
+notifyBtn.onclick = async ()=>{
+  if (!("Notification" in window)){ alert("浏览器不支持桌面通知"); return; }
+  if(Notification.permission === "granted"){ notificationEnabled = true; notifyBtn.textContent="通知已开启"; return; }
+  const permission = await Notification.requestPermission();
+  if(permission === "granted"){ notificationEnabled = true; notifyBtn.textContent="通知已开启"; }
+  else alert("通知权限被拒绝");
+}
+
+function showNotification(title, body){
+  if(!notificationEnabled || Notification.permission !== "granted") return;
+  try{ new Notification(title,{body:body}); }catch(e){}
+}
+
+function renderLinks(text){
+  // 画板固定同步到 Draw 1，狼人杀固定同步到 Play 1（都携带昵称）
+  const boardUrl = `board.html?room=${encodeURIComponent("Draw 1")}&name=${encodeURIComponent(myName)}`;
+  const wolfUrl = `wolf.html?room=${encodeURIComponent("Play 1")}&name=${encodeURIComponent(myName)}`;
+  let out = esc(text);
+  out = out.replace(/#画板/g, `<a target="_blank" class="board-link" href="${boardUrl}">#画板</a>`);
+  out = out.replace(/#狼人杀/g, `<a target="_blank" class="wolf-link" href="${wolfUrl}">#狼人杀</a>`);
+  return out;
+}
+
+function addMessage(time, name, text, type="msg-other"){
+  const div = document.createElement("div");
+  div.className = `msg ${type}`;
+  div.innerHTML = `<span class="time">[${time}]</span>【${esc(name)}】${renderLinks(text)}`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function addSystemMsg(text){
+  const div = document.createElement("div");
+  div.className = "msg msg-system";
+  div.textContent = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendChatMessage(content){
+  if(!content.trim()) return;
+  const msgData = {type:"chat", name: myName, text: content.trim()};
+  if(isHost) hostReceiveMsg(msgData);
+  else{
+    const hostConn = connections.get(roomId);
+    if(hostConn && hostConn.open) hostConn.send(msgData);
+    else addSystemMsg("❌ 未连接主机，发送失败");
+  }
+  msgInput.value = "";
+}
+
+function hostReceiveMsg(msgData){
+  const timeStr = formatTime(new Date());
+  const fullMsg = {type:"chat", name: msgData.name, text: msgData.text, time: timeStr};
+  addMessage(timeStr, msgData.name, msgData.text, msgData.name===myName?"msg-self":"msg-other");
+  showNotification(`来自${msgData.name}`, msgData.text);
+  for(const [id,conn] of connections) if(conn.open) conn.send(fullMsg);
+}
+
+createBtn.onclick = ()=>{
+  myName = nameInput.value.trim();
+  roomId = roomInput.value.trim();
+  if(!myName) return alert("请填写昵称！");
+  if(!roomId) return alert("填写房间ID");
+  isHost = true;
+  statusEl.textContent = `✅ 主机，房间：${roomId}，昵称：${myName}`;
+  peer = new Peer(roomId);
+  peer.on('open', ()=>{ addSystemMsg("✅ 聊天室房间创建成功"); });
+  peer.on('error', err=>{ alert("Peer错误："+err); statusEl.textContent="主机出错"; });
+  peer.on('connection', conn=>{
+    connections.set(conn.peer, conn);
+    addSystemMsg(`📢 新用户接入，在线：${connections.size}人`);
+    statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
+    conn.on('data', data=>{ if(data.type === "chat") hostReceiveMsg(data); });
+    conn.on('close',()=>{
+      connections.delete(conn.peer);
+      addSystemMsg(`📢 用户离开，在线：${connections.size}人`);
+      statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
+    });
+  });
+};
+
+joinBtn.onclick = ()=>{
+  myName = nameInput.value.trim();
+  roomId = roomInput.value.trim();
+  if(!myName) return alert("请填写昵称！");
+  if(!roomId) return alert("填写房间ID");
+  isHost = false;
+  statusEl.textContent = "🔄 正在连接聊天室主机...";
+  peer = new Peer();
+  peer.on('open',()=>{
+    const conn = peer.connect(roomId, {serialization:"json", reliable:true});
+    connections.set(roomId, conn);
+    conn.on('open',()=>{ statusEl.textContent = "✅ 已连接聊天室，可以聊天"; addSystemMsg("✅ 成功进入聊天室"); });
+    conn.on('data', data=>{
+      if(data.type === "chat"){
+        addMessage(data.time, data.name, data.text, data.name===myName?"msg-self":"msg-other");
+        showNotification(`来自${data.name}`, data.text);
+      }
+    });
+    conn.on('close',()=>{ addSystemMsg("❌ 断开聊天室连接"); statusEl.textContent = "❌ 断开连接"; });
+    conn.on('error',err=>{ alert("聊天室连接失败:"+err); statusEl.textContent="❌ 连接失败"; });
+  });
+  peer.on('error',err=>{ alert("Peer初始化错误:"+err); statusEl.textContent="❌ Peer初始化失败"; });
+};
+
+sendBtn.onclick = ()=> sendChatMessage(msgInput.value);
+msgInput.addEventListener("keydown",e=>{ if(e.key === "Enter") sendChatMessage(msgInput.value); });
+</script>
+</body>
+</html>
