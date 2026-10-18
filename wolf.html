@@ -63,6 +63,7 @@ input[type=text]{padding:6px 8px;font-size:14px;border:1px solid #bbb;border-rad
         <button id="createBtn">创建(主机)</button>
         <button id="joinBtn">加入</button>
         <button id="startBtn" class="primary" disabled>开始游戏(5-10人)</button>
+        <button id="pauseBtn" class="primary" style="display:none">⏸ 暂停</button>
         <span id="status">等待操作</span>
       </div>
       <div style="margin-top:8px">
@@ -115,6 +116,8 @@ const ROLE_TIPS = {
   witch:"拥有一瓶解药和一瓶毒药（各一次）。轮到女巫阶段时可选择救回今晚被杀者，或用毒药毒死一名玩家。",
   hunter:"被放逐或被杀出局时（毒杀除外），可以开枪带走一名玩家。"
 };
+// 预言家每局限定查验总次数
+const SEER_MAX_CHECKS=3;
 function buildRoles(n){
   if(n===5) return ["wolf","villager","villager","seer","witch"];
   if(n===6) return ["wolf","wolf","villager","villager","seer","witch"];
@@ -137,6 +140,14 @@ const roleCard=$("roleCard"), myRoleName=$("myRoleName"), roleTip=$("roleTip"), 
 const godCard=$("godCard"), godList=$("godList"), godLog=$("godLog");
 const phaseTitle=$("phaseTitle"), timerEl=$("timer"), actionArea=$("actionArea");
 const log=$("log"), chatInput=$("chatInput"), chatSend=$("chatSend");
+const pauseBtn=$("pauseBtn");
+
+// 从链接读取 room / name（从聊天室带过来的）
+const urlParams = new URLSearchParams(window.location.search);
+const roomParam = urlParams.get('room');
+const nameParam = urlParams.get('name');
+if(roomParam) roomInput.value = roomParam;
+if(nameParam) nameInput.value = nameParam;
 
 let peer, isHost=false, roomId, myName="";
 let meId = isHost ? "host" : "";
@@ -146,14 +157,14 @@ let gameRunning=false, gameOver=false;
 let phase="lobby";
 let day=0;
 let phaseTimer=null, timeLeft=0;
+let paused=false;      // 是否被主机暂停
+let phaseEndTimer=null; // 阶段结束定时器（用于暂停时挂起）
 
 // 本机身份
 let myRole=null, myPlayer=null, wolves=[];
 
 // 是否是旁观者（游戏进行中加入房间，看上帝视角）
 let isSpectator=false;
-// 预言家每局可查验的总次数
-const SEER_MAX_CHECKS=3;
 
 // 夜晚数据（主机持有）
 let wolfKillTarget=null;
@@ -174,16 +185,59 @@ function logAdd(html, cls="log-ann"){
 function logSys(t){ logAdd(esc(t),"log-sys"); }
 function logAnn(t){ logAdd(esc(t),"log-ann"); }
 
-// ============ 计时器/阶段（主机与客户端通用 UI） ============
-function clearTimer(){ clearInterval(phaseTimer); phaseTimer=null; timerEl.textContent=""; }
-function setPhaseTitle(label, seconds){
+// ============ 计时器/阶段（主机与客户端通用 UI，支持暂停） ============
+let phaseEndTimeout=null, phaseEndCb=null, phaseEndMs=0, phaseEndStart=0;
+function clearTimer(){
+  if(phaseTimer){ clearInterval(phaseTimer); phaseTimer=null; }
+  if(phaseEndTimeout){ clearTimeout(phaseEndTimeout); phaseEndTimeout=null; }
+  timerEl.textContent="";
+}
+function updatePauseBtn(){ if(pauseBtn) pauseBtn.textContent = paused ? "▶ 继续" : "⏸ 暂停"; }
+// 设置阶段标题 + 倒计时 + 结束回调（主机传入；客户端仅显示不推进）
+function setPhaseTitle(label, seconds, endCb){
   phaseTitle.textContent=label;
   clearTimer();
-  if(seconds){
+  phaseEndCb=endCb||null; phaseEndMs=0; phaseEndStart=0;
+  if(seconds && seconds>0){
     timeLeft=seconds;
+    phaseEndMs=seconds*1000; phaseEndStart=Date.now();
     timerEl.textContent=`⏱ ${timeLeft}秒`;
     phaseTimer=setInterval(()=>{ timeLeft--; if(timeLeft<=0) timerEl.textContent=""; else timerEl.textContent=`⏱ ${timeLeft}秒`; },1000);
+    if(phaseEndCb){
+      const cb=phaseEndCb;
+      phaseEndTimeout=setTimeout(()=>{ if(!paused){ phaseEndCb=null; if(cb) cb(); } }, phaseEndMs);
+    }
+  }else{
+    timerEl.textContent="";
   }
+}
+// 暂停/恢复（主机调用广播；客户端收到 pause 消息调用）
+function applyPause(v){
+  paused=v;
+  updatePauseBtn();
+  if(paused){
+    // 挂起倒计时与阶段结束
+    clearTimer();
+    if(phaseEndMs>0 && phaseEndStart){
+      const elapsed=Date.now()-phaseEndStart;
+      phaseEndMs=Math.max(0, phaseEndMs-elapsed);
+    }
+    timerEl.textContent="⏸ 已暂停";
+  }else{
+    // 恢复：按剩余时间重建
+    if(phaseEndMs>0){
+      timeLeft=Math.ceil(phaseEndMs/1000);
+      timerEl.textContent=`⏱ ${timeLeft}秒`;
+      phaseTimer=setInterval(()=>{ timeLeft--; if(timeLeft<=0) timerEl.textContent=""; else timerEl.textContent=`⏱ ${timeLeft}秒`; },1000);
+      if(phaseEndCb){
+        const cb=phaseEndCb;
+        phaseEndTimeout=setTimeout(()=>{ if(!paused){ phaseEndCb=null; if(cb) cb(); } }, phaseEndMs);
+      }
+    }else{
+      timerEl.textContent="";
+    }
+  }
+  updateAllActions();
 }
 
 // ============ 主机权威逻辑 ============
@@ -197,15 +251,21 @@ let godHistory=[];
 function syncAlive(){
   const st=players.map(p=>({id:p.id,name:p.name,alive:p.alive}));
   broadcast({type:"state", players:st});
+  renderPlayers(players.map(p=>({id:p.id,name:p.name,alive:p.alive})));
   broadcastToSpectators({type:"godState", players:players.map(p=>({id:p.id,name:p.name,alive:p.alive,role:p.role})), history:godHistory});
 }
 // 向旁观者记录一次操作（上帝视角能看到每个人对谁做了什么）
 function godOp(text){ godHistory.push(text); broadcastToSpectators({type:"godOp", text}); }
 
 // 主机设置阶段并广播给所有客户端
-function hostSetPhase(p, label, seconds){
+function hostSetPhase(p, label, seconds, endCb){
+  // 阶段切换自动解除暂停（若此前处于暂停）
+  if(paused){
+    paused=false;
+    broadcast({type:"pause", paused:false});
+  }
   phase=p;
-  setPhaseTitle(label, seconds);
+  setPhaseTitle(label, seconds, endCb);
   broadcast({type:"phase", phase:p, label, seconds});
   updateAllActions();
 }
@@ -238,10 +298,9 @@ function startNight(){
   nightWolfPhase();
 }
 function nightWolfPhase(){
-  hostSetPhase("night-wolf","🌙 狼人行动（杀谁？）",30);
+  hostSetPhase("night-wolf","🌙 狼人行动（杀谁？）",30,()=>{ if(phase==="night-wolf") afterWolfPhase(); });
   broadcast({type:"announce", text:"🌙 狼人请选择今晚的击杀目标（狼队友投票，多数决）。"});
   // 通知狼人各自的行动（客户端在 phase 里自行渲染按钮）
-  setTimeout(()=>{ if(phase==="night-wolf") afterWolfPhase(); },30000);
 }
 function afterWolfPhase(){
   // 狼人击杀多数决
@@ -253,15 +312,14 @@ function afterWolfPhase(){
   nightSeerPhase();
 }
 function nightSeerPhase(){
-  hostSetPhase("night-seer","🔮 预言家行动（查验谁？）",30);
+  hostSetPhase("night-seer","🔮 预言家行动（查验谁？）",30,()=>{ if(phase==="night-seer") afterSeerPhase(); });
   broadcast({type:"announce", text:"🔮 预言家请选择一名玩家查验。"});
-  setTimeout(()=>{ if(phase==="night-seer") afterSeerPhase(); },30000);
 }
 function afterSeerPhase(){
   nightWitchPhase();
 }
 function nightWitchPhase(){
-  hostSetPhase("night-witch","🧪 女巫行动（救/毒？）",30);
+  hostSetPhase("night-witch","🧪 女巫行动（救/毒？）",30,()=>{ if(phase==="night-witch") afterWitchPhase(); });
   // 只告诉女巫今晚被杀者是谁
   const witch = players.find(p=>p.role==="witch"&&p.alive);
   if(witch){
@@ -269,7 +327,6 @@ function nightWitchPhase(){
     sendTo(witch.id,{type:"witchInfo", killName, saveAvailable:witch.antidote, poisonAvailable:witch.poison});
   }
   broadcast({type:"announce", text:"🧪 女巫行动（解药/毒药各一次）。"});
-  setTimeout(()=>{ if(phase==="night-witch") afterWitchPhase(); },30000);
 }
 function afterWitchPhase(){
   resolveNight();
@@ -310,13 +367,12 @@ function resolveNight(){
 }
 
 function gunPhase(targetId, reason){
-  hostSetPhase("gun","🔫 猎人开枪",15);
+  hostSetPhase("gun","🔫 猎人开枪",15,()=>{ if(phase==="gun"){ broadcast({type:"announce", text:"猎人未开枪。"}); logSys("猎人未开枪。"); afterGun(); } });
   const hunter=players.find(p=>p.id===targetId);
   if(hunter) hunter.gunDone=false;
   logSys(`🔫 猎人【${hunter.name}】${reason}，可以开枪带走一名玩家！`);
   broadcast({type:"gun", targetId, reason});
   broadcast({type:"resetDone"});
-  setTimeout(()=>{ if(phase==="gun"){ broadcast({type:"announce", text:"猎人未开枪。"}); logSys("猎人未开枪。"); afterGun(); } },15000);
 }
 function afterGun(){
   const w=checkWin();
@@ -325,17 +381,15 @@ function afterGun(){
 }
 
 function startDaySpeak(){
-  hostSetPhase("daySpeak",`💬 第 ${day} 天 · 白天发言`,45);
+  hostSetPhase("daySpeak",`💬 第 ${day} 天 · 白天发言`,45,()=>{ if(phase==="daySpeak") startDayVote(); });
   broadcast({type:"announce", text:`💬 白天发言阶段（${45}秒），存活玩家轮流发言讨论。`});
-  setTimeout(()=>{ if(phase==="daySpeak") startDayVote(); },45000);
 }
 function startDayVote(){
-  hostSetPhase("dayVote",`🗳 第 ${day} 天 · 投票放逐`,30);
+  hostSetPhase("dayVote",`🗳 第 ${day} 天 · 投票放逐`,30,()=>{ if(phase==="dayVote") resolveDayVote(); });
   players.forEach(p=>{ p.vote=null; p.voteDone=false; });
   // 通知所有客户端重置投票标记（否则客户端本地一直是已投票，投不了）
   broadcast({type:"resetDone"});
   broadcast({type:"announce", text:"🗳 开始投票！请存活玩家选择要放逐的人。"});
-  setTimeout(()=>{ if(phase==="dayVote") resolveDayVote(); },30000);
 }
 function resolveDayVote(){
   const votes={};
@@ -346,6 +400,7 @@ function resolveDayVote(){
   if(!exile){
     broadcast({type:"voteResult", text:"投票平票，无人被放逐。"});
     logSys("🗳 平票，无人被放逐。");
+    syncAlive();
     const w=checkWin(); if(w){ endGame(w); return; }
     startNight();
     return;
@@ -397,6 +452,11 @@ function updateAllActions(){
   const aliveList=alive();
   let html="";
 
+  if(paused && phase!=="gameover"){
+    actionArea.innerHTML="<div class='action-label'>⏸ 游戏已暂停，等待主机继续...</div>";
+    return;
+  }
+
   if(phase==="night-wolf"){
     if(myRole==="wolf" && me.alive){
       if(me.wolfDone){
@@ -426,22 +486,22 @@ function updateAllActions(){
     }
   }else if(phase==="night-witch"){
     if(myRole==="witch" && me.alive){
-      html+=`<div class="action-label">🧪 女巫行动（解药/毒药各一次）</div>`;
+      html+=`<div class="action-label">🧪 女巫行动（解药${me.antidote?"可用":"已用"}，毒药${me.poison?"可用":"已用"}）</div>`;
       if(me.antidote){
         html+=`<div class="action-label" style="font-weight:normal">解药（救回今晚被杀者：<span id="witchKillName">...</span>）</div>`;
         html+=`<div class="act-row">${me.saveDone
-          ?`<button disabled>解药已使用</button>`
-          :`<button data-act="witchsave" data-id="">使用解药救人</button><button data-act="witchsave" data-id="">不使用解药</button>`}</div>`;
+          ?`<button disabled>本轮已决定（不消耗解药）</button>`
+          :`<button data-act="witchsave" data-id="">使用解药救人</button><button data-act="witchno" data-id="">不使用解药</button>`}</div>`;
       }else{
         html+=`<div class="action-label" style="font-weight:normal;color:#999">解药已用完/已用</div>`;
       }
       if(me.poison){
         html+=`<div class="action-label" style="margin-top:4px">毒药：选择毒杀目标</div>`;
         html+= me.poisonDone
-          ? `<div class="action-label" style="font-weight:normal;color:#999">毒药已使用</div>`
-          : `<div class="act-row">${aliveList.filter(p=>p.id!==me.id).map(p=>`<button data-act="witchpoison" data-id="${p.id}">${esc(p.name)}</button>`).join("")}<button data-act="witchpoison" data-id="">不用毒药</button></div>`;
+          ? `<div class="action-label" style="font-weight:normal;color:#999">本轮已决定（不消耗毒药）</div>`
+          : `<div class="act-row">${aliveList.filter(p=>p.id!==me.id).map(p=>`<button data-act="witchpoison" data-id="${p.id}">${esc(p.name)}</button>`).join("")}<button data-act="witchno" data-id="">不用毒药</button></div>`;
       }else{
-        html+=`<div class="action-label" style="font-weight:normal;color:#999;margin-top:4px">毒药已用完/已用</div>`;
+        html+=`<div class="action-label" style="font-weight:normal;color:#999">毒药已用完/已用</div>`;
       }
     }else{
       html+=`<div class="action-label">🧪 女巫行动中...（闭眼等待）</div>`;
@@ -499,6 +559,9 @@ function handleServerMsg(msg){
     phase=msg.phase;
     setPhaseTitle(msg.label, msg.seconds);
     updateAllActions();
+  }else if(msg.type==="pause"){
+    applyPause(!!msg.paused);
+    logSys(msg.paused ? "⏸ 主机暂停了游戏" : "▶ 游戏继续");
   }else if(msg.type==="resetDone"){
     // 新阶段开始：重置本机玩家的提交标记，确保每轮都能重新操作
     if(myPlayer){
@@ -540,7 +603,8 @@ function handleServerMsg(msg){
   }else if(msg.type==="godOp"){
     if(isSpectator) appendGodLog(msg.text);
   }else if(msg.type==="nightResult" || msg.type==="voteResult"){
-    // 结果由主机在本地用 logAdd 处理；客户端这里仅保证 UI 刷新
+    // 客户端也要把死亡/放逐结果写进日志
+    if(!isHost && msg.text){ logAdd(esc(msg.text), msg.type==="nightResult"?"log-death":"log-death"); }
     updateAllActions();
   }else if(msg.type==="announce"){
     logAdd(esc(msg.text),"log-ann");
@@ -592,21 +656,22 @@ actionArea.addEventListener("click",(e)=>{
   const act=btn.dataset.act, id=btn.dataset.id;
   const me=myPlayer;
   // 已提交的动作直接忽略
-  if(me && ( (act==="wolfkill"&&me.wolfDone) || (act==="seer"&&me.seerDone) || (act==="witchsave"&&me.saveDone) || (act==="witchpoison"&&me.poisonDone) || (act==="vote"&&me.voteDone) || (act==="gun"&&me.gunDone) )){
+  if(me && ( (act==="wolfkill"&&me.wolfDone) || (act==="seer"&&me.seerDone) || (act==="witchsave"&&me.saveDone) || (act==="witchno"&&(me.saveDone||me.poisonDone)) || (act==="witchpoison"&&me.poisonDone) || (act==="vote"&&me.voteDone) || (act==="gun"&&me.gunDone) )){
     return;
   }
-  const label = {wolfkill:"确认要击杀该玩家？", seer:"确认要查验该玩家？（只能查验一次）", witchsave:"确认使用解药救人？", witchpoison:"确认用毒药毒杀该玩家？", vote:"确认投票放逐该玩家？（不可改票）", gun:"确认开枪带走该玩家？"}[act];
+  const label = {wolfkill:"确认要击杀该玩家？", seer:"确认要查验该玩家？（只能查验一次）", witchsave:"确认使用解药救人？", witchno:"确认不使用药（本轮不再使用该药）？", witchpoison:"确认用毒药毒杀该玩家？", vote:"确认投票放逐该玩家？（不可改票）", gun:"确认开枪带走该玩家？"}[act];
   if(!confirm(label)) return;
   const msg={type:"act", act, target:id, from:meId};
   if(isHost) handleServerAction(msg);
   else{ const c=connections.get(roomId); if(c&&c.open) c.send(msg); }
   // 本机标记已提交，立即刷新按钮为已提交状态
   if(me){
-    if(act==="wolfkill") me.wolfDone=true;
-    else if(act==="seer") me.seerDone=true;
+    if(act==="wolfkill"){ me.wolfDone=true; me.killTarget=id; }
+    else if(act==="seer"){ me.seerDone=true; me.seerChecksUsed=(me.seerChecksUsed||0)+1; }
     else if(act==="witchsave"){ me.saveDone=true; me.antidote=false; }
+    else if(act==="witchno"){ me.saveDone=true; me.poisonDone=true; }
     else if(act==="witchpoison"){ me.poisonDone=true; me.poison=false; }
-    else if(act==="vote") me.voteDone=true;
+    else if(act==="vote"){ me.voteDone=true; me.vote=id; }
     else if(act==="gun") me.gunDone=true;
     updateAllActions();
   }
@@ -637,14 +702,22 @@ function handleServerAction(msg){
     sendTo(msg.from,{type:"seerLeft", left:SEER_MAX_CHECKS-p.seerChecksUsed});
     godOp(`🔮 ${p.name} 查验了 ${t.name}（${t.role==="wolf"?"狼人":"好人"}）`);
   }else if(phase==="night-witch" && p.role==="witch"){
+    // 使用解药：救今晚被杀者，消耗解药
     if(msg.act==="witchsave" && p.antidote){
-      if(p.saveDone){ logSys(`🧪 女巫解药已用过，不能再改。`); return; }
+      if(p.saveDone){ logSys(`🧪 女巫本轮已决定，不能再改。`); return; }
       p.saveDone=true;
       p.witchSave=true; p.antidote=false; logSys(`🧪 女巫使用了解药（本轮已定）。`);
       godOp(`🧪 女巫 ${p.name} 使用了解药`);
     }
+    // 不使用：本轮放弃使用解药，但不消耗次数（解药保留）
+    if(msg.act==="witchno"){
+      if(p.saveDone && p.poisonDone){ logSys(`🧪 女巫本轮已决定。`); return; }
+      p.saveDone=true; p.poisonDone=true;
+      logSys(`🧪 女巫本轮不使用解药/毒药（保留次数）。`);
+    }
+    // 使用毒药：毒死目标，消耗毒药
     if(msg.act==="witchpoison" && p.poison){
-      if(p.poisonDone){ logSys(`🧪 女巫毒药已用过，不能再改。`); return; }
+      if(p.poisonDone){ logSys(`🧪 女巫本轮已决定，不能再改。`); return; }
       const t = msg.target ? players.find(x=>x.id===msg.target) : null;
       if(t && !t.alive){ logSys("🧪 毒药目标无效，请选择存活玩家。"); return; }
       p.poisonDone=true;
@@ -732,9 +805,20 @@ createBtn.onclick=()=>{
     });
   });
   players=[{id:"host",name:myName,role:null,alive:true,antidote:true,poison:true,
-    wolfDone:false,seerDone:false,saveDone:false,poisonDone:false,voteDone:false,gunDone:false}];
+    wolfDone:false,seerDone:false,saveDone:false,poisonDone:false,voteDone:false,gunDone:false,seerChecksUsed:0}];
   myPlayer=players[0]; meId="host";
   updatePlayerList();
+  pauseBtn.style.display="inline-block";
+};
+
+// 暂停/继续（仅主机）
+pauseBtn.onclick=()=>{
+  if(!isHost){ alert("只有主机可以暂停游戏"); return; }
+  if(!gameRunning){ alert("游戏尚未开始"); return; }
+  paused=!paused;
+  broadcast({type:"pause", paused});
+  applyPause(paused);
+  logSys(paused?"⏸ 主机暂停了游戏":"▶ 游戏继续");
 };
 
 function registerPlayer(id,name){
@@ -768,9 +852,7 @@ joinBtn.onclick=()=>{
     connections.set(roomId,conn);
     meId=peer.id;
     conn.on("open",()=>{ statusEl.textContent="✅ 已连接，等待发牌"; conn.send({type:"join", name:myName}); });
-    conn.on("data",data=>{
-      handleClientMsg(data);
-    });
+    conn.on("data",data=>{ handleClientMsg(data); });
     conn.on("close",()=>{ statusEl.textContent="❌ 断开连接"; });
     conn.on("error",err=>{ alert("连接错误:"+err); });
   });
