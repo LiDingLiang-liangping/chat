@@ -2,84 +2,152 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>联机大厅</title>
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
-body{display:grid;grid-template-columns:1fr 320px;height:100vh;overflow:hidden}
-#pluginWrap{background:#111}
-#chatSide{display:flex;flex-direction:column;border-left:1px solid #aaa;background:#fff}
-#chatLog{flex:1;overflow-y:auto;padding:8px}
-.msg{margin:3px 0;font-size:14px}
-.system{color:#777}
-#chatInputBar{display:flex;padding:8px;border-top:1px solid #aaa}
-#chatInput{flex:1;padding:6px}
-#sendBtn{padding:6px 10px;cursor:pointer}
-iframe{width:100%;height:100%;border:none}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui, sans-serif}
+body{display:grid;grid-template-columns:1fr 300px;height:100vh;overflow:hidden}
+#mainView{background:#181818}
+#gameIframe{width:100%;height:100%;border:none;display:block}
+#chatPanel{display:flex;flex-direction:column;border-left:1px solid #444;background:#0f0f0f;color:#eee}
+#chatLog{flex:1;overflow-y:auto;padding:10px;font-size:14px}
+.msg{padding:2px 0;word-break:break-all}
+.system{color:#888}
+.self{color:#6cf}
+.other{color:#fc8}
+#chatInputWrap{display:flex;padding:8px;border-top:1px solid #444}
+#chatInput{flex:1;padding:6px;background:#222;color:#fff;border:1px solid #444;outline:none}
+#sendBtn{padding:6px 10px;border:none;background:#3377dd;color:#fff;cursor:pointer}
+#tip{padding:6px 10px;color:#aaa;font-size:13px;border-bottom:1px solid #333}
 </style>
 </head>
 <body>
-<div id="pluginWrap"></div>
-<div id="chatSide">
+<div id="mainView">
+  <iframe id="gameIframe" style="display:none"></iframe>
+</div>
+<div id="chatPanel">
+  <div id="tip">指令：#wolf 狼人杀 | #world 多人世界 | #gobang 五子棋 | #board 基础同步样板</div>
   <div id="chatLog"></div>
-  <div id="chatInputBar">
-    <input id="chatInput" placeholder="发送消息，#world / #gobang 加载插件">
+  <div id="chatInputWrap">
+    <input id="chatInput" placeholder="输入消息，#指令加载插件">
     <button id="sendBtn">发送</button>
   </div>
 </div>
 
 <script>
-const pluginWrap = document.getElementById("pluginWrap");
+const LOBBY_ROOM = "Lobby";
 const chatLog = document.getElementById("chatLog");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
-let currentIframe = null;
+const iframe = document.getElementById("gameIframe");
 
-function addMsg(text, cls=""){
-  const div = document.createElement("div");
-  div.className = "msg "+cls;
-  div.textContent = text;
-  chatLog.appendChild(div);
+let peer, myId;
+let conns = {};
+let nickname = "游客"+Math.floor(Math.random()*9999);
+
+function addMsg(text, cls="other"){
+  const d = document.createElement("div");
+  d.className = "msg "+cls;
+  d.textContent = text;
+  chatLog.appendChild(d);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function broadcast(data){
+  Object.values(conns).forEach(c=>c.send(data));
+}
+
+// 大厅Peer初始化
+peer = new Peer(LOBBY_ROOM,{debug:0});
+peer.on("open",id=>{
+  myId = id;
+  addMsg("[系统] 成功进入大厅 Lobby","system");
+  // 主动连接已经在线的人
+  peer.listAllPeers().then(list=>{
+    list.forEach(pid=>{
+      if(pid!==myId) connectPeer(pid);
+    })
+  })
+})
+peer.on("connection",c=>{
+  conns[c.peer] = c;
+  c.on("data",d=>onRecv(d));
+  c.on("close",()=>{
+    delete conns[c.peer];
+    addMsg(`[系统] ${c.peer} 离开大厅`,"system");
+  })
+})
+function connectPeer(pid){
+  if(conns[pid]) return;
+  const c = peer.connect(pid);
+  conns[pid] = c;
+  c.on("data",d=>onRecv(d));
+  c.on("close",()=>{
+    delete conns[pid];
+    addMsg(`[系统] ${pid} 离开大厅`,"system");
+  })
+}
+
+function onRecv(pkt){
+  if(pkt.type === "chat"){
+    addMsg(`[${pkt.name}] ${pkt.text}`,"other");
+  }
+}
+
+// 加载插件
 function loadPlugin(url){
-  // 销毁旧iframe，清定时器/peer上下文
-  if(currentIframe){
-    currentIframe.src = "javascript:false";
-    currentIframe.remove();
-    currentIframe = null;
-  }
-  const iframe = document.createElement("iframe");
   iframe.src = url;
-  pluginWrap.appendChild(iframe);
-  currentIframe = iframe;
-  addMsg("[系统] 加载插件："+url,"system");
+  iframe.style.display = "block";
+  addMsg(`[系统] 加载插件: ${url}`,"system");
+}
+function closePlugin(){
+  iframe.src = "";
+  iframe.style.display = "none";
+  addMsg("[系统] 已关闭插件","system");
 }
 
-function handleInput(text){
-  const t = text.trim();
-  if(!t) return;
-  addMsg("[你] "+t);
-  if(t === "#world"){
+function handleSend(){
+  const raw = chatInput.value.trim();
+  chatInput.value = "";
+  if(!raw) return;
+
+  // 指令判断
+  if(raw === "#wolf"){
+    loadPlugin("wolf.html");
+    return;
+  }
+  if(raw === "#world"){
     loadPlugin("world.html");
-  }else if(t === "#gobang"){
-    loadPlugin("gobang.html");
-  }else{
-    addMsg("[全局广播] "+t,"system");
+    return;
   }
+  if(raw === "#gobang"){
+    loadPlugin("gobang.html");
+    return;
+  }
+  if(raw === "#board"){
+    loadPlugin("board.html");
+    return;
+  }
+  if(raw === "#close"){
+    closePlugin();
+    return;
+  }
+
+  // 普通大厅聊天广播
+  addMsg(`[你] ${raw}`,"self");
+  const pkt = {
+    type:"chat",
+    name:nickname,
+    text:raw
+  };
+  broadcast(pkt);
 }
 
-sendBtn.onclick = ()=>{
-  handleInput(chatInput.value);
-  chatInput.value="";
-}
+sendBtn.onclick = handleSend;
 chatInput.onkeydown = e=>{
-  if(e.key==="Enter"){
-    handleInput(chatInput.value);
-    chatInput.value="";
-  }
+  if(e.key === "Enter") handleSend();
 }
-addMsg("[系统] 欢迎！指令：#world 多人世界 | #gobang 五子棋","system");
 </script>
 </body>
 </html>
