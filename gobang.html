@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>五子棋</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui, sans-serif}
+body{background:#f8f8f8;height:100vh;overflow:hidden}
+#wrap{width:100%;height:100%;display:flex;flex-direction:column}
+#loginPanel{padding:16px;border-bottom:1px solid #ccc;display:flex;gap:8px;align-items:center}
+#nickInput{padding:6px;width:200px}
+#loginBtn{padding:6px 12px;cursor:pointer}
+.tip{color:#d03030;font-size:13px;margin-left:8px}
+#lobby{padding:12px;flex:1;overflow:auto}
+#lobby h4{margin-bottom:8px}
+.player-item{
+  padding:6px 8px;background:#fff;border:1px solid #ddd;border-radius:4px;
+  margin:4px 0;display:flex;justify-content:space-between;align-items:center
+}
+.inviteBtn{padding:4px 8px;cursor:pointer;background:#4080ff;color:#fff;border:none;border-radius:3px}
+.inviteBtn:disabled{background:#aaa;cursor:not-allowed}
+#gameView{display:none;padding:12px;gap:16px}
+#boardBox{position:relative}
+canvas#board{background:#e9c897;border:2px solid #885522}
+#gameChatWrap{
+  width:240px;display:flex;flex-direction:column;
+  border:1px solid #ddd;border-radius:4px;position:absolute;right:12px;bottom:12px;background:#fff
+}
+#gameChatLog{height:220px;overflow-y:auto;padding:6px;font-size:13px}
+#gameChatInputWrap{display:flex;padding:6px;border-top:1px solid #ddd}
+#gameChatInput{flex:1;padding:4px}
+#gameChatSend{padding:4px 6px;cursor:pointer}
+#inviteModal{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);
+  align-items:center;justify-content:center;z-index:99
+}
+.modal-inner{background:#fff;padding:20px;border-radius:6px}
+.modal-btn{margin:8px 4px;padding:6px 10px;cursor:pointer}
+.game-info{margin-bottom:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="loginPanel">
+    <input id="nickInput" placeholder="输入昵称，不可重复">
+    <button id="loginBtn">上线</button>
+    <span class="tip" id="loginTip"></span>
+  </div>
+
+  <div id="lobby">
+    <h4>🏠 五子棋大厅</h4>
+    <div id="playerList"></div>
+  </div>
+
+  <div id="gameView">
+    <div>
+      <div class="game-info" id="gameInfo"></div>
+      <div id="boardBox">
+        <canvas id="board" width="480" height="480"></canvas>
+      </div>
+    </div>
+    <div id="gameChatWrap">
+      <div id="gameChatLog"></div>
+      <div id="gameChatInputWrap">
+        <input id="gameChatInput" placeholder="对局私聊...">
+        <button id="gameChatSend">发</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="inviteModal">
+  <div class="modal-inner">
+    <div id="inviteText"></div>
+    <button class="modal-btn" id="inviteAccept">接受</button>
+    <button class="modal-btn" id="inviteReject">拒绝</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+const BOARD_SIZE = 15;
+const CELL = 32;
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+
+const nickInput = document.getElementById("nickInput");
+const loginBtn = document.getElementById("loginBtn");
+const loginTip = document.getElementById("loginTip");
+const lobby = document.getElementById("lobby");
+const gameView = document.getElementById("gameView");
+const playerListEl = document.getElementById("playerList");
+const gameInfoEl = document.getElementById("gameInfo");
+const inviteModal = document.getElementById("inviteModal");
+const inviteText = document.getElementById("inviteText");
+const inviteAccept = document.getElementById("inviteAccept");
+const inviteReject = document.getElementById("inviteReject");
+const gameChatLog = document.getElementById("gameChatLog");
+const gameChatInput = document.getElementById("gameChatInput");
+const gameChatSend = document.getElementById("gameChatSend");
+
+let peer;
+let myPeerId = null;
+let myNick = "";
+let onlinePlayers = new Map();
+let isOnline = false;
+let inGame = false;
+let gameRoomId = null;
+let gamePartner = null;
+let myColor = null;
+let board = Array(BOARD_SIZE).fill(0).map(()=>Array(BOARD_SIZE).fill(0));
+let turn = "black";
+let gameOver = false;
+
+let hostPeerId = null;
+let hostElectionTimer = null;
+let peerConns = new Map();
+const MAIN_ROOM = "GobangRoom";
+
+const MSG = {
+  JOIN:"join",
+  LIST:"list",
+  INVITE:"invite",
+  INVITE_REPLY:"invite_reply",
+  MOVE:"move",
+  GAME_CHAT:"game_chat",
+  GAME_END:"game_end",
+  HOST_ANNOUNCE:"host_announce",
+  LEAVE:"leave"
+};
+
+function makeRoomId(n1,n2){
+  const arr = [n1,n2].sort();
+  return "gobang_"+arr[0]+"_vs_"+arr[1];
+}
+function notify(title,body){
+  if(Notification.permission === "granted") new Notification(title,{body});
+}
+function requestNotify(){
+  if(Notification.permission !== "granted") Notification.requestPermission();
+}
+
+function drawBoard(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle="#333";
+  ctx.lineWidth=1;
+  for(let i=0;i<BOARD_SIZE;i++){
+    ctx.beginPath();
+    ctx.moveTo(CELL/2 + i*CELL, CELL/2);
+    ctx.lineTo(CELL/2 + i*CELL, canvas.width - CELL/2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(CELL/2, CELL/2 + i*CELL);
+    ctx.lineTo(canvas.width - CELL/2, CELL/2 + i*CELL);
+    ctx.stroke();
+  }
+  const stars = [[3,3],[11,3],[3,11],[11,11],[7,7]];
+  ctx.fillStyle="#333";
+  stars.forEach(([x,y])=>{
+    ctx.beginPath();
+    ctx.arc(CELL/2 + x*CELL, CELL/2 + y*CELL,4,0,Math.PI*2);
+    ctx.fill();
+  })
+  for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+      const v = board[r][c];
+      if(!v) continue;
+      ctx.beginPath();
+      ctx.arc(CELL/2 + c*CELL, CELL/2 + r*CELL, CELL*0.42,0,Math.PI*2);
+      ctx.fillStyle = v===1 ? "#111" : "#fff";
+      ctx.fill();
+      ctx.strokeStyle="#222";
+      ctx.lineWidth=1;
+      ctx.stroke();
+    }
+  }
+}
+function checkWin(r,c,colorCode){
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  for(let [dr,dc] of dirs){
+    let cnt=1;
+    for(let i=1;i<5;i++){
+      const nr=r+dr*i, nc=c+dc*i;
+      if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE) break;
+      if(board[nr][nc]===colorCode) cnt++; else break;
+    }
+    for(let i=1;i<5;i++){
+      const nr=r-dr*i, nc=c-dc*i;
+      if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE) break;
+      if(board[nr][nc]===colorCode) cnt++; else break;
+    }
+    if(cnt>=5) return true;
+  }
+  return false;
+}
+function isDraw(){
+  for(let r=0;r<BOARD_SIZE;r++)
+    for(let c=0;c<BOARD_SIZE;c++)
+      if(board[r][c]===0) return false;
+  return true;
+}
+
+canvas.onclick = e=>{
+  if(!inGame || gameOver) return;
+  if(turn !== myColor) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  let c = Math.floor(mx / CELL);
+  let r = Math.floor(my / CELL);
+  if(r<0||r>=BOARD_SIZE||c<0||c>=BOARD_SIZE) return;
+  if(board[r][c]!==0) return;
+
+  const code = myColor==="black"?1:2;
+  board[r][c] = code;
+  drawBoard();
+  sendToPeer(getPeerIdByNick(gamePartner),{
+    type:MSG.MOVE, r,c,color:myColor
+  })
+  if(checkWin(r,c,code)){
+    gameOver=true;
+    gameInfoEl.textContent = `🎉 ${myNick}(${myColor==="black"?"黑":"白"}) 获胜！`;
+    sendToPeer(getPeerIdByNick(gamePartner),{type:MSG.GAME_END, winner:myNick});
+    return;
+  }
+  if(isDraw()){
+    gameOver=true;
+    gameInfoEl.textContent = "🤝 和棋！棋盘已满";
+    sendToPeer(getPeerIdByNick(gamePartner),{type:MSG.GAME_END, draw:true});
+    return;
+  }
+  turn = turn==="black"?"white":"black";
+  syncGameInfo();
+}
+
+function syncGameInfo(){
+  if(gameOver) return;
+  gameInfoEl.textContent = `对局：${myNick}(${myColor==="black"?"黑":"白"}) VS ${gamePartner}(${myColor==="black"?"白":"黑"})｜轮到【${turn==="black"?"黑棋":"白棋"}】`;
+}
+
+function renderLobby(){
+  playerListEl.innerHTML = "";
+  onlinePlayers.forEach((pid,nick)=>{
+    if(nick===myNick) return;
+    const div = document.createElement("div");
+    div.className="player-item";
+    div.innerText = nick;
+    const btn = document.createElement("button");
+    btn.className="inviteBtn";
+    btn.innerText="邀请对战";
+    btn.disabled = inGame;
+    btn.onclick = ()=>{
+      const targetPid = onlinePlayers.get(nick);
+      sendToPeer(targetPid,{
+        type:MSG.INVITE, fromNick:myNick, toNick:nick
+      });
+      loginTip.textContent = `已向 ${nick} 发送邀请`;
+    }
+    div.appendChild(btn);
+    playerListEl.appendChild(div);
+  })
+}
+
+gameChatSend.onclick = ()=>{
+  const txt = gameChatInput.value.trim();
+  if(!txt || !gamePartner) return;
+  appendGameChat(myNick,txt);
+  sendToPeer(getPeerIdByNick(gamePartner),{type:MSG.GAME_CHAT, nick:myNick, text:txt});
+  gameChatInput.value="";
+}
+gameChatInput.onkeydown = e=>{if(e.key==="Enter") gameChatSend.click()}
+function appendGameChat(name,text){
+  const d = document.createElement("div");
+  d.style.margin="2px 0";
+  d.textContent = `[${name}] ${text}`;
+  gameChatLog.appendChild(d);
+  gameChatLog.scrollTop = gameChatLog.scrollHeight;
+}
+
+inviteAccept.onclick = ()=>{
+  const fromNick = inviteModal.dataset.from;
+  inviteModal.style.display="none";
+  startGame(fromNick);
+  sendToPeer(getPeerIdByNick(fromNick),{
+    type:MSG.INVITE_REPLY, ok:true, fromNick:myNick, toNick:fromNick
+  })
+}
+inviteReject.onclick = ()=>{
+  const fromNick = inviteModal.dataset.from;
+  inviteModal.style.display="none";
+  sendToPeer(getPeerIdByNick(fromNick),{
+    type:MSG.INVITE_REPLY, ok:false
+  })
+}
+
+function startGame(partnerNick){
+  inGame = true;
+  gamePartner = partnerNick;
+  gameRoomId = makeRoomId(myNick, partnerNick);
+  lobby.style.display="none";
+  gameView.style.display="flex";
+  gameChatLog.innerHTML = "";
+  board = Array(BOARD_SIZE).fill(0).map(()=>Array(BOARD_SIZE).fill(0));
+  gameOver = false;
+  myColor = myNick < partnerNick ? "black" : "white";
+  turn = "black";
+  drawBoard();
+  syncGameInfo();
+}
+function exitGame(){
+  inGame=false;
+  gamePartner=null;
+  gameRoomId=null;
+  gameOver=false;
+  lobby.style.display="block";
+  gameView.style.display="none";
+  renderLobby();
+}
+
+function getPeerIdByNick(nick){ return onlinePlayers.get(nick) }
+function sendToPeer(pid,obj){
+  const c = peerConns.get(pid);
+  if(c) c.send(obj);
+}
+function broadcast(obj){
+  peerConns.forEach((c)=>c.send(obj))
+}
+
+function announceHost(){
+  hostPeerId = myPeerId;
+  broadcast({type:MSG.HOST_ANNOUNCE, host:myPeerId})
+}
+function checkHostAlive(){
+  if(hostPeerId === myPeerId) return;
+  if(!peerConns.has(hostPeerId)){
+    announceHost();
+    loginTip.textContent = "✅ 原主机离线，本机自动成为新主机";
+  }
+}
+
+loginBtn.onclick = async ()=>{
+  const nick = nickInput.value.trim();
+  if(!nick){loginTip.textContent="昵称不能为空";return}
+  if(onlinePlayers.has(nick)){loginTip.textContent="昵称已被占用！";return}
+  requestNotify();
+  myNick = nick;
+  loginBtn.disabled=true;
+  nickInput.disabled=true;
+
+  peer = new Peer(MAIN_ROOM,{debug:1});
+  peer.on("open",id=>{
+    myPeerId = id;
+    onlinePlayers.set(myNick, myPeerId);
+    isOnline = true;
+    if(!hostPeerId) announceHost();
+    broadcast({type:MSG.JOIN, nick:myNick, pid:myPeerId});
+    renderLobby();
+    loginTip.textContent="✅ 上线成功";
+    hostElectionTimer = setInterval(checkHostAlive,3000);
+  })
+  peer.on("connection",c=>{
+    peerConns.set(c.peer,c);
+    c.on("data",data=>handleData(c.peer,data));
+    c.on("close",()=>{
+      peerConns.delete(c.peer);
+      if(gamePartner && onlinePlayers.get(gamePartner)===c.peer){
+        appendGameChat("系统","对手离线，对局结束");
+        exitGame();
+      }
+      let delNick=null;
+      onlinePlayers.forEach((pid,n)=>{if(pid===c.peer) delNick=n})
+      if(delNick){
+        onlinePlayers.delete(delNick);
+        broadcast({type:MSG.LIST, list:Object.fromEntries(onlinePlayers)})
+        renderLobby();
+      }
+    })
+  })
+}
+
+function handleData(fromPid,msg){
+  switch(msg.type){
+    case MSG.JOIN:{
+      onlinePlayers.set(msg.nick, msg.pid);
+      broadcast({type:MSG.LIST, list:Object.fromEntries(onlinePlayers)});
+      renderLobby();
+      break;
+    }
+    case MSG.LIST:{
+      onlinePlayers = new Map(Object.entries(msg.list));
+      renderLobby();
+      break;
+    }
+    case MSG.INVITE:{
+      if(inGame) return;
+      inviteModal.dataset.from = msg.fromNick;
+      inviteText.innerText = `${msg.fromNick} 邀请你进行五子棋对战`;
+      inviteModal.style.display="flex";
+      notify("五子棋邀请",`${msg.fromNick} 邀你下棋！`)
+      break;
+    }
+    case MSG.INVITE_REPLY:{
+      if(msg.ok){
+        startGame(msg.fromNick);
+      }else{
+        loginTip.textContent = "对方拒绝了你的邀请";
+      }
+      break;
+    }
+    case MSG.MOVE:{
+      const code = msg.color==="black"?1:2;
+      board[msg.r][msg.c] = code;
+      drawBoard();
+      turn = turn==="black"?"white":"black";
+      syncGameInfo();
+      break;
+    }
+    case MSG.GAME_CHAT:{
+      appendGameChat(msg.nick, msg.text);
+      break;
+    }
+    case MSG.GAME_END:{
+      gameOver=true;
+      if(msg.draw){
+        gameInfoEl.textContent="🤝 和棋！棋盘已满";
+      }else{
+        gameInfoEl.textContent = `🎉 ${msg.winner} 获胜！`;
+      }
+      break;
+    }
+    case MSG.HOST_ANNOUNCE:{
+      hostPeerId = msg.host;
+      break;
+    }
+    case MSG.LEAVE:{
+      onlinePlayers.delete(msg.nick);
+      broadcast({type:MSG.LIST, list:Object.fromEntries(onlinePlayers)});
+      renderLobby();
+      break;
+    }
+  }
+}
+
+drawBoard();
+</script>
+</body>
+</html>
