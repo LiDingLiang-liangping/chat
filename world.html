@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>多人世界</title>
+<style>
+*{margin:0;padding:0}
+body{overflow:hidden;background:#222}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+const ROOM_ID = "World 1";
+const canvas = document.getElementById("cv");
+const ctx = canvas.getContext("2d");
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+resize();
+window.onresize=resize;
+
+// 输入
+const keys = {};
+window.onkeydown=e=>{keys[e.code]=true;if(e.code==="KeyP")tryPickup()};
+window.onkeyup=e=>keys[e.code]=false;
+
+let peer, myId, hostId=null;
+let players = {};
+const SPEED = 4;
+
+function createPlayer(){
+  return {
+    x:Math.random()*canvas.width*0.5+100,
+    y:Math.random()*canvas.height*0.5+100,
+    color:"#ffffff",
+    heldBy:null,
+    holding:null
+  }
+}
+let me = createPlayer();
+
+function announceHost(){
+  hostId = myId;
+  broadcast({type:"host",host:myId});
+}
+function isHost(){return hostId === myId}
+
+function sendTo(id,data){
+  if(!conns[id])return;
+  conns[id].send(data);
+}
+function broadcast(data){
+  for(let c of Object.values(conns))c.send(data);
+}
+
+const conns = {};
+peer = new Peer(ROOM_ID,{debug:1});
+peer.on("open",id=>{
+  myId = id;
+  players[myId] = me;
+  if(!hostId) announceHost();
+  for(let pid of Object.keys(players)){
+    if(pid===myId)continue;
+    const c = peer.connect(pid);
+    setupConn(c,pid);
+  }
+})
+peer.on("connection",c=>{
+  const pid = c.peer;
+  setupConn(c,pid);
+})
+function setupConn(c,pid){
+  conns[pid]=c;
+  c.on("open",()=>{
+    c.send({type:"init",players,hostId});
+  })
+  c.on("data",d=>handleData(pid,d));
+  c.on("close",()=>{
+    delete conns[pid];
+    delete players[pid];
+    if(pid===hostId){
+      // 主机掉线，自己上位
+      announceHost();
+    }
+  })
+}
+
+function handleData(from,msg){
+  switch(msg.type){
+    case "init":
+      players = msg.players;
+      hostId = msg.hostId;
+      if(!players[myId])players[myId]=me;
+      break;
+    case "host":
+      hostId = msg.host;
+      break;
+    case "state":
+      if(!isHost()){
+        players[from] = msg.p;
+      }
+      break;
+  }
+}
+
+function tryPickup(){
+  if(!isHost()) return;
+  for(const [pid,p] of Object.entries(players)){
+    if(pid===myId) continue;
+    const dx = p.x - me.x;
+    const dy = p.y - me.y;
+    const dist = Math.hypot(dx,dy);
+    if(dist < 40){
+      if(me.holding){
+        // 放下
+        players[me.holding].heldBy=null;
+        me.holding=null;
+      }else{
+        // 抱起
+        p.heldBy = myId;
+        me.holding = pid;
+      }
+      broadcast({type:"state",p:players[pid]});
+      break;
+    }
+  }
+}
+
+function hostTick(){
+  // 本地移动
+  if(keys["KeyW"]||keys["ArrowUp"]) me.y -= SPEED;
+  if(keys["KeyS"]||keys["ArrowDown"]) me.y += SPEED;
+  if(keys["KeyA"]||keys["ArrowLeft"]) me.x -= SPEED;
+  if(keys["KeyD"]||keys["ArrowRight"]) me.x += SPEED;
+  // 被抱起跟随主机头顶
+  for(const pid in players){
+    const pl = players[pid];
+    if(pl.heldBy){
+      const holder = players[pl.heldBy];
+      pl.x = holder.x;
+      pl.y = holder.y - 28;
+    }
+  }
+  broadcast({type:"state",p:me});
+}
+
+function draw(){
+  ctx.fillStyle="#222";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(const p of Object.values(players)){
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-12,p.y-12,24,24);
+  }
+}
+function loop(){
+  if(isHost()) hostTick();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
