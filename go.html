@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五子棋</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{padding:16px;font-family:system-ui}
+#info{margin-bottom:10px}
+#board{border:2px #333 solid;background:#deb887}
+.cell{width:28px;height:28px;float:left;border:1px #999 solid}
+.black{background:#111;border-radius:50%}
+.white{background:#fff;border-radius:50%;border:1px #666 solid}
+#msgBox{margin-top:12px;height:140px;border:1px #aaa solid;padding:6px;overflow-y:auto}
+</style>
+</head>
+<body>
+<div id="info">
+房间:<span id="roomSpan"></span> | 我的昵称:<span id="nameSpan"></span>
+</div>
+<div id="board"></div>
+<div id="msgBox"></div>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+// 读取url参数（来自聊天室链接 go.html?room=Go 1&name=xxx）
+const params = new URLSearchParams(location.search);
+const roomId = params.get("room") || "Go 1";
+const myName = params.get("name") || "游客";
+document.getElementById("roomSpan").innerText = roomId;
+document.getElementById("nameSpan").innerText = myName;
+
+// 简单15路五子棋本地棋盘示例，你可以替换成你原来的完整五子棋代码
+const SIZE =15;
+const boardEl = document.getElementById("board");
+let map=Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+//0空 1黑 2白
+let turn=1;
+
+//渲染棋盘
+function renderBoard(){
+  boardEl.innerHTML="";
+  for(let y=0;y<SIZE;y++){
+    for(let x=0;x<SIZE;x++){
+      const d=document.createElement("div");
+      d.className="cell";
+      d.dataset.x=x;d.dataset.y=y;
+      if(map[y][x]===1) d.classList.add("black");
+      if(map[y][x]===2) d.classList.add("white");
+      d.onclick=()=>clickCell(x,y);
+      boardEl.appendChild(d);
+    }
+  }
+}
+function clickCell(x,y){
+  if(map[y][x]!==0) return;
+  map[y][x]=turn;
+  turn = turn===1?2:1;
+  renderBoard();
+}
+renderBoard();
+
+// 追加日志
+function log(s){
+  const box=document.getElementById("msgBox");
+  box.innerText += s+"\n";
+  box.scrollTop=box.scrollHeight;
+}
+log(`进入五子棋房间：${roomId}，昵称：${myName}`);
+</script>
+</body>
+</html>
