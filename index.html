@@ -3,151 +3,152 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>联机大厅</title>
+<title>联机聊天室大厅（A型）</title>
 <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui, sans-serif}
-body{display:grid;grid-template-columns:1fr 300px;height:100vh;overflow:hidden}
-#mainView{background:#181818}
-#gameIframe{width:100%;height:100%;border:none;display:block}
-#chatPanel{display:flex;flex-direction:column;border-left:1px solid #444;background:#0f0f0f;color:#eee}
-#chatLog{flex:1;overflow-y:auto;padding:10px;font-size:14px}
-.msg{padding:2px 0;word-break:break-all}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
+body{max-width:900px;margin:0 auto;padding:12px;background:#111;color:#eee}
+.top-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+input{padding:7px;background:#222;border:1px solid #444;color:#fff;outline:none;border-radius:4px}
+button{padding:7px 12px;border:none;border-radius:4px;background:#2868d8;color:#fff;cursor:pointer}
+#log{height:60vh;overflow-y:auto;border:1px solid #333;padding:10px;margin:10px 0;background:#181818;border-radius:4px}
+.msg{margin:4px 0;word-break:break-all}
+.time{color:#777;font-size:12px;margin-right:6px}
+.name{color:#6cf}
+.link-tag{color:#7cf;text-decoration:underline;cursor:pointer}
 .system{color:#888}
-.self{color:#6cf}
-.other{color:#fc8}
-#chatInputWrap{display:flex;padding:8px;border-top:1px solid #444}
-#chatInput{flex:1;padding:6px;background:#222;color:#fff;border:1px solid #444;outline:none}
-#sendBtn{padding:6px 10px;border:none;background:#3377dd;color:#fff;cursor:pointer}
-#tip{padding:6px 10px;color:#aaa;font-size:13px;border-bottom:1px solid #333}
+.input-row{display:flex;gap:8px}
+#msgInput{flex:1}
 </style>
 </head>
 <body>
-<div id="mainView">
-  <iframe id="gameIframe" style="display:none"></iframe>
+<div class="top-bar">
+  <input id="nickInput" placeholder="昵称" value="游客">
+  <input id="roomInput" placeholder="房间" value="Chat 1">
+  <button id="joinBtn">加入房间</button>
 </div>
-<div id="chatPanel">
-  <div id="tip">指令：#wolf 狼人杀 | #world 多人世界 | #gobang 五子棋 | #board 基础同步样板</div>
-  <div id="chatLog"></div>
-  <div id="chatInputWrap">
-    <input id="chatInput" placeholder="输入消息，#指令加载插件">
-    <button id="sendBtn">发送</button>
-  </div>
+<div id="log"></div>
+<div class="input-row">
+  <input id="msgInput" placeholder="发消息，#wolf #world #board 生成游戏链接">
+  <button id="sendBtn">发送</button>
 </div>
 
 <script>
-const LOBBY_ROOM = "Lobby";
-const chatLog = document.getElementById("chatLog");
-const chatInput = document.getElementById("chatInput");
+const log = document.getElementById("log");
+const nickInput = document.getElementById("nickInput");
+const roomInput = document.getElementById("roomInput");
+const joinBtn = document.getElementById("joinBtn");
+const msgInput = document.getElementById("msgInput");
 const sendBtn = document.getElementById("sendBtn");
-const iframe = document.getElementById("gameIframe");
 
-let peer, myId;
-let conns = {};
-let nickname = "游客"+Math.floor(Math.random()*9999);
+let peer, connMap = {};
+let myName = "";
+let myRoom = "";
+const CMD_MAP = {
+  "#wolf": {file:"wolf.html", room:"Play 1"},
+  "#world": {file:"world.html", room:"World 1"},
+  "#board": {file:"board.html", room:"BoardDemo 1"}
+};
 
-function addMsg(text, cls="other"){
-  const d = document.createElement("div");
-  d.className = "msg "+cls;
-  d.textContent = text;
-  chatLog.appendChild(d);
-  chatLog.scrollTop = chatLog.scrollHeight;
+function addMsg(html, cls=""){
+  const div = document.createElement("div");
+  div.className = "msg "+cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function escapeHTML(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function formatTime(){
+  const d = new Date();
+  return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");
 }
 
-function broadcast(data){
-  Object.values(conns).forEach(c=>c.send(data));
+function openGame(file, room, name){
+  const url = `${file}?room=${encodeURIComponent(room)}&name=${encodeURIComponent(name)}`;
+  window.open(url, "_blank");
 }
 
-// 大厅Peer初始化
-peer = new Peer(LOBBY_ROOM,{debug:0});
-peer.on("open",id=>{
-  myId = id;
-  addMsg("[系统] 成功进入大厅 Lobby","system");
-  // 主动连接已经在线的人
-  peer.listAllPeers().then(list=>{
+function parseText(text, name){
+  let out = escapeHTML(text);
+  for(const [cmd,cfg] of Object.entries(CMD_MAP)){
+    if(out.includes(escapeHTML(cmd))){
+      const linkHtml = `<span class="link-tag" data-cmd="${cmd}">${cmd}</span>`;
+      out = out.replace(escapeHTML(cmd), linkHtml);
+    }
+  }
+  return out;
+}
+
+function broadcast(pkt){
+  Object.values(connMap).forEach(c=>c.send(pkt));
+}
+
+function startPeer(roomId, nick){
+  if(peer) peer.destroy();
+  myName = nick;
+  myRoom = roomId;
+  peer = new Peer(roomId, {debug:0});
+
+  peer.on("open", async (id)=>{
+    addMsg(`<span class="time">${formatTime()}</span>[系统] 已进入房间 ${escapeHTML(roomId)}`,"system");
+    const list = await peer.listAllPeers();
     list.forEach(pid=>{
-      if(pid!==myId) connectPeer(pid);
+      if(pid!==id) setupConn(peer.connect(pid), pid);
     })
   })
-})
-peer.on("connection",c=>{
-  conns[c.peer] = c;
-  c.on("data",d=>onRecv(d));
-  c.on("close",()=>{
-    delete conns[c.peer];
-    addMsg(`[系统] ${c.peer} 离开大厅`,"system");
+  peer.on("connection", c=>{
+    setupConn(c, c.peer);
   })
-})
-function connectPeer(pid){
-  if(conns[pid]) return;
-  const c = peer.connect(pid);
-  conns[pid] = c;
-  c.on("data",d=>onRecv(d));
-  c.on("close",()=>{
-    delete conns[pid];
-    addMsg(`[系统] ${pid} 离开大厅`,"system");
+}
+function setupConn(c, pid){
+  connMap[pid] = c;
+  c.on("data", pkt=>{
+    if(pkt.type === "chat"){
+      const html = `<span class="time">${pkt.t}</span><span class="name">${escapeHTML(pkt.nick)}：</span>${parseText(pkt.text, pkt.nick)}`;
+      addMsg(html);
+    }
+  })
+  c.on("close", ()=>{
+    delete connMap[pid];
+    addMsg(`<span class="time">${formatTime()}</span>[系统] ${pid} 离开`,"system");
   })
 }
 
-function onRecv(pkt){
-  if(pkt.type === "chat"){
-    addMsg(`[${pkt.name}] ${pkt.text}`,"other");
-  }
+joinBtn.onclick = ()=>{
+  const n = nickInput.value.trim() || "游客";
+  const r = roomInput.value.trim() || "Chat 1";
+  startPeer(r,n);
 }
 
-// 加载插件
-function loadPlugin(url){
-  iframe.src = url;
-  iframe.style.display = "block";
-  addMsg(`[系统] 加载插件: ${url}`,"system");
-}
-function closePlugin(){
-  iframe.src = "";
-  iframe.style.display = "none";
-  addMsg("[系统] 已关闭插件","system");
-}
-
-function handleSend(){
-  const raw = chatInput.value.trim();
-  chatInput.value = "";
-  if(!raw) return;
-
-  // 指令判断
-  if(raw === "#wolf"){
-    loadPlugin("wolf.html");
-    return;
-  }
-  if(raw === "#world"){
-    loadPlugin("world.html");
-    return;
-  }
-  if(raw === "#gobang"){
-    loadPlugin("gobang.html");
-    return;
-  }
-  if(raw === "#board"){
-    loadPlugin("board.html");
-    return;
-  }
-  if(raw === "#close"){
-    closePlugin();
-    return;
-  }
-
-  // 普通大厅聊天广播
-  addMsg(`[你] ${raw}`,"self");
+function send(){
+  const txt = msgInput.value.trim();
+  if(!txt || !peer) return;
+  msgInput.value = "";
   const pkt = {
     type:"chat",
-    name:nickname,
-    text:raw
+    nick:myName,
+    text:txt,
+    t:formatTime()
   };
   broadcast(pkt);
+  const html = `<span class="time">${pkt.t}</span><span class="name">[你]：</span>${parseText(txt, myName)}`;
+  addMsg(html);
+}
+sendBtn.onclick = send;
+msgInput.onkeydown = e=>{
+  if(e.key === "Enter") send();
 }
 
-sendBtn.onclick = handleSend;
-chatInput.onkeydown = e=>{
-  if(e.key === "Enter") handleSend();
-}
+// 点击#链接打开游戏
+log.addEventListener("click", e=>{
+  const span = e.target.closest(".link-tag");
+  if(!span) return;
+  const cmd = span.dataset.cmd;
+  const cfg = CMD_MAP[cmd];
+  if(cfg) openGame(cfg.file, cfg.room, myName);
+})
 </script>
 </body>
 </html>
