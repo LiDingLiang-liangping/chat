@@ -3,152 +3,218 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>联机聊天室大厅（A型）</title>
-<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<title>P2P 聊天室（支持 #画板 #狼人杀 #世界 #五子棋 链接）</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
-body{max-width:900px;margin:0 auto;padding:12px;background:#111;color:#eee}
-.top-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-input{padding:7px;background:#222;border:1px solid #444;color:#fff;outline:none;border-radius:4px}
-button{padding:7px 12px;border:none;border-radius:4px;background:#2868d8;color:#fff;cursor:pointer}
-#log{height:60vh;overflow-y:auto;border:1px solid #333;padding:10px;margin:10px 0;background:#181818;border-radius:4px}
-.msg{margin:4px 0;word-break:break-all}
-.time{color:#777;font-size:12px;margin-right:6px}
-.name{color:#6cf}
-.link-tag{color:#7cf;text-decoration:underline;cursor:pointer}
-.system{color:#888}
-.input-row{display:flex;gap:8px}
-#msgInput{flex:1}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
+body{padding:12px;max-width:850px;margin:0 auto}
+#ui{margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#chatBox{
+  border:1px solid #999;
+  height:46vh;min-height:320px;
+  overflow-y:auto;
+  padding:8px;
+  margin-bottom:10px;
+  background:#fff;
+}
+.msg{margin:4px 0;line-height:1.4}
+.msg-self{color:#0066cc}
+.msg-other{color:#222}
+.msg-system{color:#888;font-style:italic}
+.time{font-size:0.8em;color:#777;margin-right:6px}
+/* 画板/狼人杀链接高亮 */
+a.board-link{
+  color:#0055dd;
+  text-decoration:underline;
+  font-weight:bold;
+}
+a.wolf-link{
+  color:#cc3300;
+  text-decoration:underline;
+  font-weight:bold;
+}
+a.world-link{
+  color:#1a9d4a;
+  text-decoration:underline;
+  font-weight:bold;
+}
+/* 新增五子棋链接样式 */
+a.go-link{
+  color:#8b4513;
+  text-decoration:underline;
+  font-weight:bold;
+}
+a:hover{color:#dd3333}
+#inputArea{display:flex;gap:8px}
+#msgInput{flex:1;padding:8px;font-size:16px}
+button{padding:8px 12px;font-size:14px}
+#status{color:#226;font-size:13px}
+small.hint{color:#999}
 </style>
 </head>
 <body>
-<div class="top-bar">
-  <input id="nickInput" placeholder="昵称" value="游客">
-  <input id="roomInput" placeholder="房间" value="Chat 1">
+<div id="ui">
+  <input id="nameInput" placeholder="输入你的昵称" />
+  <input id="roomInput" placeholder="房间ID，如Chat 1" value="Chat 1">
+  <button id="createBtn">创建房间(主机)</button>
   <button id="joinBtn">加入房间</button>
+  <button id="notifyBtn">开启消息通知</button>
+  <span id="status">等待操作</span>
 </div>
-<div id="log"></div>
-<div class="input-row">
-  <input id="msgInput" placeholder="发消息，#wolf #world #board 生成游戏链接">
+<div id="chatBox"></div>
+<div id="inputArea">
+  <input id="msgInput" placeholder="输入消息，含 #画板 #狼人杀 #世界 #五子棋 会生成链接" />
   <button id="sendBtn">发送</button>
 </div>
-
+<p class="hint">💡 发送包含 <b>#画板</b> 生成画板链接，<b>#狼人杀</b> 生成狼人杀链接，<b>#世界</b> 生成多人世界链接，<b>#五子棋</b> 生成五子棋链接，链接自动带房间号和你的昵称。</p>
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <script>
-const log = document.getElementById("log");
-const nickInput = document.getElementById("nickInput");
-const roomInput = document.getElementById("roomInput");
-const joinBtn = document.getElementById("joinBtn");
-const msgInput = document.getElementById("msgInput");
-const sendBtn = document.getElementById("sendBtn");
-
-let peer, connMap = {};
+const chatBox = document.getElementById('chatBox');
+const nameInput = document.getElementById('nameInput');
+const roomInput = document.getElementById('roomInput');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const statusEl = document.getElementById('status');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const notifyBtn = document.getElementById('notifyBtn');
+let peer;
+let isHost = false;
+let roomId;
 let myName = "";
-let myRoom = "";
-const CMD_MAP = {
-  "#wolf": {file:"wolf.html", room:"Play 1"},
-  "#world": {file:"world.html", room:"World 1"},
-  "#board": {file:"board.html", room:"BoardDemo 1"}
-};
-
-function addMsg(html, cls=""){
-  const div = document.createElement("div");
-  div.className = "msg "+cls;
-  div.innerHTML = html;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+let connections = new Map();
+let notificationEnabled = false;
+// 转义HTML，防止XSS
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
-function escapeHTML(s){
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function formatTime(date){
+  const h = String(date.getHours()).padStart(2,"0");
+  const m = String(date.getMinutes()).padStart(2,"0");
+  const s = String(date.getSeconds()).padStart(2,"0");
+  return `${h}:${m}:${s}`;
 }
-function formatTime(){
-  const d = new Date();
-  return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");
-}
-
-function openGame(file, room, name){
-  const url = `${file}?room=${encodeURIComponent(room)}&name=${encodeURIComponent(name)}`;
-  window.open(url, "_blank");
-}
-
-function parseText(text, name){
-  let out = escapeHTML(text);
-  for(const [cmd,cfg] of Object.entries(CMD_MAP)){
-    if(out.includes(escapeHTML(cmd))){
-      const linkHtml = `<span class="link-tag" data-cmd="${cmd}">${cmd}</span>`;
-      out = out.replace(escapeHTML(cmd), linkHtml);
-    }
+notifyBtn.onclick = async ()=>{
+  if (!("Notification" in window)){
+    alert("浏览器不支持桌面通知");
+    return;
   }
+  if(Notification.permission === "granted"){
+    notificationEnabled = true;
+    notifyBtn.textContent="通知已开启";
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if(permission === "granted"){
+    notificationEnabled = true;
+    notifyBtn.textContent="通知已开启";
+  }else{
+    alert("通知权限被拒绝");
+  }
+}
+function showNotification(title, body){
+  if(!notificationEnabled || Notification.permission !== "granted") return;
+  try{ new Notification(title,{body:body}); }catch(e){}
+}
+// 把文本里的 #画板 / #狼人杀 / #世界 / #五子棋 替换成链接
+function renderLinks(text){
+  // 固定同步：画板固定进 Draw 1 房间，狼人杀固定进 Play 1 房间，世界固定进 World 1 房间，五子棋固定进 Go 1房间，仅带昵称
+  const nameQ = encodeURIComponent(myName||"匿名");
+  const boardUrl = `board.html?room=${encodeURIComponent("Draw 1")}&name=${nameQ}`;
+  const wolfUrl = `wolf.html?room=${encodeURIComponent("Play 1")}&name=${nameQ}`;
+  const worldUrl = `world.html?room=${encodeURIComponent("World 1")}&name=${nameQ}`;
+  const goUrl = `go.html?room=${encodeURIComponent("Go 1")}&name=${nameQ}`;
+  let out = esc(text);
+  out = out.replace(/#画板/g, `<a target="_blank" class="board-link" href="${boardUrl}">#画板</a>`);
+  out = out.replace(/#狼人杀/g, `<a target="_blank" class="wolf-link" href="${wolfUrl}">#狼人杀</a>`);
+  out = out.replace(/#世界/g, `<a target="_blank" class="world-link" href="${worldUrl}">#世界</a>`);
+  out = out.replace(/#五子棋/g, `<a target="_blank" class="go-link" href="${goUrl}">#五子棋</a>`);
   return out;
 }
-
-function broadcast(pkt){
-  Object.values(connMap).forEach(c=>c.send(pkt));
+function addMessage(time, name, text, type="msg-other"){
+  const div = document.createElement("div");
+  div.className = `msg ${type}`;
+  div.innerHTML = `<span class="time">[${time}]</span>【${esc(name)}】${renderLinks(text)}`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
 }
-
-function startPeer(roomId, nick){
-  if(peer) peer.destroy();
-  myName = nick;
-  myRoom = roomId;
-  peer = new Peer(roomId, {debug:0});
-
-  peer.on("open", async (id)=>{
-    addMsg(`<span class="time">${formatTime()}</span>[系统] 已进入房间 ${escapeHTML(roomId)}`,"system");
-    const list = await peer.listAllPeers();
-    list.forEach(pid=>{
-      if(pid!==id) setupConn(peer.connect(pid), pid);
-    })
-  })
-  peer.on("connection", c=>{
-    setupConn(c, c.peer);
-  })
+function addSystemMsg(text){
+  const div = document.createElement("div");
+  div.className = "msg msg-system";
+  div.textContent = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
 }
-function setupConn(c, pid){
-  connMap[pid] = c;
-  c.on("data", pkt=>{
-    if(pkt.type === "chat"){
-      const html = `<span class="time">${pkt.t}</span><span class="name">${escapeHTML(pkt.nick)}：</span>${parseText(pkt.text, pkt.nick)}`;
-      addMsg(html);
+function sendChatMessage(content){
+  if(!content.trim()) return;
+  const msgData = {type:"chat", name: myName, text: content.trim()};
+  if(isHost){
+    hostReceiveMsg(msgData);
+  }else{
+    const hostConn = connections.get(roomId);
+    if(hostConn && hostConn.open){
+      hostConn.send(msgData);
+    }else{
+      addSystemMsg("❌ 未连接主机，发送失败");
     }
-  })
-  c.on("close", ()=>{
-    delete connMap[pid];
-    addMsg(`<span class="time">${formatTime()}</span>[系统] ${pid} 离开`,"system");
-  })
-}
-
-joinBtn.onclick = ()=>{
-  const n = nickInput.value.trim() || "游客";
-  const r = roomInput.value.trim() || "Chat 1";
-  startPeer(r,n);
-}
-
-function send(){
-  const txt = msgInput.value.trim();
-  if(!txt || !peer) return;
+  }
   msgInput.value = "";
-  const pkt = {
-    type:"chat",
-    nick:myName,
-    text:txt,
-    t:formatTime()
-  };
-  broadcast(pkt);
-  const html = `<span class="time">${pkt.t}</span><span class="name">[你]：</span>${parseText(txt, myName)}`;
-  addMsg(html);
 }
-sendBtn.onclick = send;
-msgInput.onkeydown = e=>{
-  if(e.key === "Enter") send();
+function hostReceiveMsg(msgData){
+  const timeStr = formatTime(new Date());
+  const fullMsg = {type:"chat", name: msgData.name, text: msgData.text, time: timeStr};
+  addMessage(timeStr, msgData.name, msgData.text, msgData.name===myName?"msg-self":"msg-other");
+  showNotification(`来自${msgData.name}`, msgData.text);
+  for(const [id,conn] of connections){
+    if(conn.open) conn.send(fullMsg);
+  }
 }
-
-// 点击#链接打开游戏
-log.addEventListener("click", e=>{
-  const span = e.target.closest(".link-tag");
-  if(!span) return;
-  const cmd = span.dataset.cmd;
-  const cfg = CMD_MAP[cmd];
-  if(cfg) openGame(cfg.file, cfg.room, myName);
-})
+createBtn.onclick = ()=>{
+  myName = nameInput.value.trim();
+  roomId = roomInput.value.trim();
+  if(!myName) return alert("请填写昵称！");
+  if(!roomId) return alert("填写房间ID");
+  isHost = true;
+  statusEl.textContent = `✅ 主机，房间：${roomId}，昵称：${myName}`;
+  peer = new Peer(roomId);
+  peer.on('open', ()=>{ addSystemMsg("✅ 聊天室房间创建成功"); });
+  peer.on('error', err=>{ alert("Peer错误："+err); statusEl.textContent="主机出错"; });
+  peer.on('connection', conn=>{
+    connections.set(conn.peer, conn);
+    addSystemMsg(`📢 新用户接入，在线：${connections.size}人`);
+    statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
+    conn.on('data', data=>{ if(data.type === "chat") hostReceiveMsg(data); });
+    conn.on('close',()=>{
+      connections.delete(conn.peer);
+      addSystemMsg(`📢 用户离开，在线：${connections.size}人`);
+      statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
+    });
+  });
+};
+joinBtn.onclick = ()=>{
+  myName = nameInput.value.trim();
+  roomId = roomInput.value.trim();
+  if(!myName) return alert("请填写昵称！");
+  if(!roomId) return alert("填写房间ID");
+  isHost = false;
+  statusEl.textContent = "🔄 正在连接聊天室主机...";
+  peer = new Peer();
+  peer.on('open',()=>{
+    const conn = peer.connect(roomId, {serialization:"json", reliable:true});
+    connections.set(roomId, conn);
+    conn.on('open',()=>{ statusEl.textContent = "✅ 已连接聊天室，可以聊天"; addSystemMsg("✅ 成功进入聊天室"); });
+    conn.on('data', data=>{
+      if(data.type === "chat"){
+        addMessage(data.time, data.name, data.text, data.name===myName?"msg-self":"msg-other");
+        showNotification(`来自${data.name}`, data.text);
+      }
+    });
+    conn.on('close',()=>{ addSystemMsg("❌ 断开聊天室连接"); statusEl.textContent = "❌ 断开连接"; });
+    conn.on('error',err=>{ alert("聊天室连接失败:"+err); statusEl.textContent="❌ 连接失败"; });
+  });
+  peer.on('error',err=>{ alert("Peer初始化错误:"+err); statusEl.textContent="❌ Peer初始化失败"; });
+};
+sendBtn.onclick = ()=> sendChatMessage(msgInput.value);
+msgInput.addEventListener("keydown",e=>{ if(e.key === "Enter") sendChatMessage(msgInput.value); });
 </script>
 </body>
 </html>
