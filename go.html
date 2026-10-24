@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -23,11 +24,9 @@ input{font-size:16px;padding:7px 9px;border:1px solid #999;border-radius:3px}
 input:focus{outline:none;border-color:#0066cc}
 #status{color:#226;font-size:13px}
 .hint{color:#999;font-size:12.5px;line-height:1.6}
-
 /* ===== 视图切换 ===== */
 .view{display:none}
 .view.active{display:block}
-
 /* ===== 在线玩家 ===== */
 .panel{border:1px solid #999;margin-top:10px;padding:10px}
 .online-head{font-size:14px;font-weight:600;margin-bottom:6px}
@@ -39,7 +38,6 @@ input:focus{outline:none;border-color:#0066cc}
 .user-item.me .nm{color:#0066cc}
 .user-item.me .me-tag{color:#0066cc;font-size:12.5px}
 .empty-tip{color:#999;font-size:13.5px;padding:14px 0}
-
 /* ===== 对局 ===== */
 .game-bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:14px}
 .game-bar .oppo{color:#0066cc;font-weight:600}
@@ -47,8 +45,8 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 .turn-ind{font-size:14px;font-weight:600}
 .turn-ind.black{color:#222}
 .turn-ind.white{color:#0066cc}
+.turn-ind.draw{color:#884400}
 .game-ops{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-
 /* ===== 聊天（右下角浮动，白底） ===== */
 .chat-float{position:fixed;right:16px;bottom:16px;width:320px;max-width:calc(100vw - 32px);z-index:40;
   background:#fff;border:1px solid #999;display:flex;flex-direction:column;max-height:min(420px,70vh);
@@ -65,7 +63,6 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 .chat-input{display:flex;gap:8px;padding:8px 10px;border-top:1px solid #999}
 .chat-input input{flex:1;min-width:0;font-size:16px}
 .chat-input button{font-size:13px;padding:7px 13px}
-
 /* ===== 弹窗 ===== */
 .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
 .modal-mask.show{display:flex}
@@ -73,7 +70,6 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 .modal .mt{font-size:17px;font-weight:700;margin-bottom:6px}
 .modal .md{font-size:14px;color:#444;line-height:1.7;margin-bottom:16px}
 .modal .mbtns{display:flex;gap:10px;justify-content:flex-end}
-
 /* ===== toast ===== */
 .toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
 .toast{background:#fff;border:1px solid #999;color:#222;font-size:13.5px;padding:10px 16px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
@@ -83,10 +79,8 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 </style>
 </head>
 <body>
-
 <div class="title">五子棋</div>
-<div class="sub">进入在线大厅找到对手，邀请对方对局；同意后进入独立棋盘房间，右下角可实时聊天。</div>
-
+<div class="sub">进入在线大厅找到对手，邀请对方对局；同意后进入独立棋盘房间，右下角可实时聊天。【主机掉线自动继任】</div>
 <!-- ===== 大厅视图 ===== -->
 <section id="lobbyView" class="view active">
   <div id="ui">
@@ -103,7 +97,6 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
   </div>
   <div id="lobbyStatus" class="hint" style="margin-top:8px">尚未进入大厅</div>
 </section>
-
 <!-- ===== 对局视图 ===== -->
 <section id="gameView" class="view">
   <div class="game-bar">
@@ -117,7 +110,6 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
     <button id="backBtn" class="ghost">返回大厅</button>
   </div>
 </section>
-
 <!-- ===== 聊天（右下角浮动） ===== -->
 <div id="chatFloat" class="chat-float" style="display:none">
   <div class="chat-head">
@@ -131,7 +123,6 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
     <button id="chatSend" class="primary">发送</button>
   </div>
 </div>
-
 <!-- ===== 邀请弹窗 ===== -->
 <div id="inviteMask" class="modal-mask">
   <div class="modal">
@@ -143,41 +134,60 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
     </div>
   </div>
 </div>
-
 <div id="toastWrap" class="toast-wrap"></div>
-
 <script src="https://fastly.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (function(){
 "use strict";
+/* ================= Cookie工具：存储客户端优先序号 clientSeq ================= */
+const CookieUtil = {
+  get(name){
+    const arr = document.cookie.split('; ');
+    for(let item of arr){
+      const kv = item.split('=');
+      if(kv[0]===name) return decodeURIComponent(kv[1]);
+    }
+    return null;
+  },
+  set(name,val,days=365){
+    let d = new Date();
+    d.setTime(d.getTime() + days*24*60*60*1000);
+    document.cookie = `${name}=${encodeURIComponent(val)};expires=${d.toUTCString()};path=/`;
+  }
+};
+// 获取或生成本机优先级序号，存在cookie，序号越小越优先继任主机
+let myClientSeq = CookieUtil.get("clientSeq");
+if(myClientSeq === null){
+  myClientSeq = Date.now() + Math.floor(Math.random()*1000);
+  CookieUtil.set("clientSeq", String(myClientSeq));
+}
+myClientSeq = Number(myClientSeq);
 
 /* ================= 工具 ================= */
 const $ = id => document.getElementById(id);
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace( />/g,"&gt;").replace(/"/g,"&quot;"); }
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; $("toastWrap").appendChild(t); setTimeout(()=>{ t.remove(); },2800); }
 let notifOk=false;
 function notify(title,body){
   if(notifOk && "Notification" in window && Notification.permission==="granted"){ try{ new Notification(title,{body}); }catch(e){} }
 }
-
 /* ================= 状态 ================= */
 const LOBBY_ID = "GoLobby-2026";
 let myName="", myPeerId="";
 let lobbyPeer=null, lobbyConn=null, amLobbyHost=false;
 let lobbyConns = new Map();           // 主机：id -> conn
-let onlineUsers = [];                 // [{id,name}]
+let onlineUsers = [];                 // [{id,name,seq}] 增加seq优先级
 let inLobby=false;
-
 let gamePeer=null, gameOut=null;      // 邀请方：对局主机 peer + 对方连接
 let gameConn=null;                    // 被邀请方：到对局房间的连接
 let inGame=false, myColor=null, oppColor=null;
 let gameStarted=false, gameOver=false;
 let oppName="", pendingInvite=null;
+let lobbyReconnectTimer = null; // 大厅重连定时器
 
 /* ================= 大厅进入 ================= */
 $("enterBtn").onclick = enterLobby;
 $("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") enterLobby(); });
-
 function enterLobby(){
   myName = $("nameInput").value.trim();
   if(!myName){ toast("请先填写昵称"); return; }
@@ -201,16 +211,44 @@ function tryJoin(){
     lobbyConn = conn;
     setConn(true,"已连接大厅");
     $("lobbyStatus").textContent = "已进入大厅，等待对手…";
-    conn.send({type:"join", name:myName, id:myPeerId});
+    conn.send({type:"join", name:myName, id:myPeerId, seq:myClientSeq});
     conn.on("data", d=> handleLobbyMsg(d, myPeerId));
     conn.on("close", ()=>{
-      setConn(false,"大厅主机已离线");
-      $("lobbyStatus").textContent = "大厅主机离线，点击右上角重新进入大厅。";
-      resetLobby();
+      // 主机断开，执行继任选举逻辑
+      setConn(false,"大厅主机已离线，正在选举新主机…");
+      $("lobbyStatus").textContent = "大厅主机离线，选举继任主机";
+      lobbyConn = null;
+      triggerHostElection();
     });
   });
   conn.on("error", err=>{ if(!settled && err.type==="peer-unavailable"){ settled=true; becomeHost(); } });
   setTimeout(()=>{ if(!settled){ settled=true; becomeHost(); } }, 2500);
+}
+
+/** 主机选举：在线列表中seq最小的升级为主机；其他人等待后重连 */
+function triggerHostElection(){
+  clearTimeout(lobbyReconnectTimer);
+  // 过滤仍然存活的用户集合
+  if(onlineUsers.length ===0){
+    // 当前本地没有用户列表，直接本机升为主机
+    becomeHost();
+    return;
+  }
+  // seq从小到大排序，选出优先级最高继任者
+  const sorted = [...onlineUsers].sort((a,b)=> a.seq - b.seq);
+  const nextHost = sorted[0];
+  if(nextHost.id === myPeerId){
+    toast("你被选举为新大厅主机");
+    becomeHost();
+  }else{
+    toast(`继任主机为 ${nextHost.name}，准备重连`);
+    // 延迟后自动重连大厅
+    lobbyReconnectTimer = setTimeout(()=>{
+      if(inLobby && !amLobbyHost){
+        tryJoin();
+      }
+    }, 2200);
+  }
 }
 
 function becomeHost(){
@@ -220,7 +258,7 @@ function becomeHost(){
   lobbyPeer = new Peer(LOBBY_ID, {debug:0});
   lobbyPeer.on("open", id=>{
     myPeerId = id;
-    onlineUsers = [{id:myPeerId, name:myName}];
+    onlineUsers = [{id:myPeerId, name:myName, seq:myClientSeq}];
     renderLobby();
     setConn(true,"你是大厅主机");
     $("lobbyStatus").textContent = "你是大厅主机，可等待他人加入。";
@@ -234,8 +272,15 @@ function becomeHost(){
   lobbyPeer.on("connection", conn=>{
     conn.on("open", ()=>{
       lobbyConns.set(conn.peer, conn);
+      // =========【需求：新客户端连上，立刻单点回发完整用户列表】=========
+      conn.send({type:"list", users:[...onlineUsers]});
+
       conn.on("data", d=> handleLobbyMsg(d, conn.peer));
-      conn.on("close", ()=>{ lobbyConns.delete(conn.peer); removeUser(conn.peer); broadcastLobby(); });
+      conn.on("close", ()=>{
+        lobbyConns.delete(conn.peer);
+        removeUser(conn.peer);
+        broadcastLobby();
+      });
     });
   });
 }
@@ -243,8 +288,12 @@ function becomeHost(){
 function handleLobbyMsg(d, fromId){
   switch(d.type){
     case "join":
-      if(!onlineUsers.find(u=>u.id===d.id)){ onlineUsers.push({id:d.id, name:d.name}); }
+      if(!onlineUsers.find(u=>u.id===d.id)){ onlineUsers.push({id:d.id, name:d.name, seq:d.seq}); }
       broadcastLobby();
+      break;
+    case "list":
+      onlineUsers = d.users;
+      renderLobby();
       break;
     case "invite":
       if(d.to===myPeerId){ onInvite(d); } else relayTo(d.to, d);
@@ -271,12 +320,11 @@ function lobbySend(msg){
   else if(lobbyConn && lobbyConn.open) lobbyConn.send(msg);
 }
 function broadcastLobby(){
-  const list = onlineUsers.map(u=>({id:u.id,name:u.name}));
+  const list = onlineUsers.map(u=>({id:u.id,name:u.name,seq:u.seq}));
   lobbyConns.forEach(c=>{ if(c.open) c.send({type:"list", users:list}); });
   onlineUsers = list;
   renderLobby();
 }
-
 /* ================= 在线列表渲染 ================= */
 function renderLobby(){
   $("onlineCount").textContent = "(" + onlineUsers.length + ")";
@@ -300,7 +348,6 @@ function renderLobby(){
     ul.appendChild(li);
   });
 }
-
 /* ================= 邀请流程 ================= */
 function sendInvite(target){
   if(inGame){ toast("你正在对局中，请先结束"); return; }
@@ -320,7 +367,6 @@ function sendInvite(target){
   });
   gamePeer.on("error", err=>{ toast("创建对局房间失败，请重试"); gamePeer=null; });
 }
-
 // 被邀请方收到 invite
 function onInvite(d){
   pendingInvite = d;
@@ -362,7 +408,6 @@ $("acceptBtn").onclick = ()=>{
   gameConn.on("error", err=>{ toast("加入对局失败，请重试"); });
   toast("已接受 "+inv.from+" 的邀请");
 };
-
 /* ================= 对局视图 ================= */
 function enterGameView(opp, color){
   oppName=opp; myColor=color; oppColor = color==="black"?"white":"black";
@@ -388,7 +433,6 @@ function setTurn(color){
   el.className = "turn-ind " + (color==="black"?"black":"white");
   el.textContent = (color===myColor ? "轮到你（"+(color==="black"?"黑":"白")+"）" : "对方思考中…");
 }
-
 /* 棋盘 */
 const SIZE=15;
 let board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
@@ -456,13 +500,21 @@ function onBoardTap(clientX,clientY){
   place(c.x,c.y,myColor==="black"?1:2);
   lastMove=c;
   sendMove(c.x,c.y,myColor);
+
+  // 判断棋盘填满平局
+  let filled = true;
+  outer:for(let yy=0;yy<SIZE;yy++)for(let xx=0;xx<SIZE;xx++){ if(board[yy][xx]===0){ filled=false; break outer; } }
+  if(filled){
+    endGame("draw");
+    return;
+  }
+
   if(checkWin(c.x,c.y)){ endGame(myColor); return; }
   setTurn(oppColor);
 }
 function turnOf(){ return turnVal; } let turnVal="black";
 function place(x,y,v){ board[y][x]=v; drawBoard(); }
 function sendMove(x,y,color){ if(gameOut && gameOut.open) gameOut.send({type:"move",x,y,color}); }
-
 /* 五连检测 */
 function checkWin(x,y){
   const v=board[y][x];
@@ -479,11 +531,16 @@ function resetBoard(){ board=Array.from({length:SIZE},()=>Array(SIZE).fill(0)); 
 function endGame(winner){
   gameOver=true; gameStarted=false;
   const win = winner===myColor;
-  $("turnInd").className="turn-ind "+(win?"black":"wait");
-  $("turnInd").textContent = win ? "你赢了！" : "你输了";
-  notify(win?"你赢了五子棋":"五子棋对局结束", win?"恭喜获胜":"对方获胜");
+  if(winner==="draw"){
+    $("turnInd").className="turn-ind draw";
+    $("turnInd").textContent="本局平局！棋盘已满";
+    notify("五子棋对局结束","棋盘填满，本局平局");
+  }else{
+    $("turnInd").className="turn-ind "+winner;
+    $("turnInd").textContent = win ? "你赢了！" : "你输了";
+    notify(win?"你赢了五子棋":"五子棋对局结束", win?"恭喜获胜":"对方获胜");
+  }
 }
-
 /* 对局消息 */
 function handleGameData(d){
   switch(d.type){
@@ -491,7 +548,13 @@ function handleGameData(d){
       if(board[d.y] && board[d.y][d.x]!==undefined && board[d.y][d.x]===0){
         place(d.x,d.y, d.color==="black"?1:2);
         lastMove={x:d.x,y:d.y};
-        if(checkWin(d.x,d.y)){ endGame(d.color); }
+        let filled = true;
+        outer:for(let yy=0;yy<SIZE;yy++)for(let xx=0;xx<SIZE;xx++){ if(board[yy][xx]===0){ filled=false; break outer; } }
+        if(filled){
+          endGame("draw");
+        }else if(checkWin(d.x,d.y)){
+          endGame(d.color);
+        }
         else setTurn(d.color==="black"?"white":"black");
       }
       break;
@@ -508,7 +571,6 @@ function handleGameData(d){
       break;
   }
 }
-
 /* 对局操作 */
 $("resignBtn").onclick = ()=>{
   if(!gameStarted) return;
@@ -534,7 +596,6 @@ function leaveGame(){
   $("chatFloat").style.display="none"; $("chatBody").innerHTML="";
   resetBoard();
 }
-
 /* ================= 聊天 ================= */
 function addChat(name,text){
   const box=$("chatBody");
@@ -554,7 +615,6 @@ $("chatSend").onclick=sendChatMsg;
 $("chatInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendChatMsg(); });
 $("chatClose").onclick=()=>{ $("chatFloat").style.display="none"; };
 function showChat(){ $("chatFloat").style.display="flex"; }
-
 /* ================= 事件绑定（棋盘 + 通知） ================= */
 cv.addEventListener("mousedown", e=>onBoardTap(e.clientX,e.clientY));
 cv.addEventListener("touchstart", e=>{ e.preventDefault(); const t=e.touches[0]; onBoardTap(t.clientX,t.clientY); }, {passive:false});
@@ -566,18 +626,17 @@ $("notifyBtn").onclick = async ()=>{
   if(notifOk){ toast("桌面通知已开启"); $("notifyBtn").textContent="通知已开启"; $("notifyBtn").disabled=true; }
   else toast("通知权限未授予，邀请将仅在页面内弹窗提醒");
 };
-
 /* 连接状态指示 */
 function setConn(ok,text){
   $("status").textContent = (ok?"● ":"○ ")+text;
 }
 function resetLobby(){
+  clearTimeout(lobbyReconnectTimer);
   inLobby=false; amLobbyHost=false; lobbyConn=null; onlineUsers=[];
   $("enterBtn").disabled=false;
   renderLobby();
   try{ if(lobbyPeer){ lobbyPeer.destroy(); lobbyPeer=null; } }catch(e){}
 }
-
 /* 预填昵称：go.html?name=xxx */
 const qp=new URLSearchParams(location.search);
 const qn=qp.get("name");
