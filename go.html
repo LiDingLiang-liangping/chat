@@ -127,7 +127,7 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 <div id="inviteMask" class="modal-mask">
   <div class="modal">
     <div class="mt"><span id="invFrom"></span></div>
-    <div class="md">邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（你先手执黑）。</div>
+    <div class="md">邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（发起方先手执黑）。</div>
     <div class="mbtns">
       <button id="rejectBtn" class="ghost">拒绝</button>
       <button id="acceptBtn" class="primary">接受</button>
@@ -167,10 +167,57 @@ myClientSeq = Number(myClientSeq);
 const $ = id => document.getElementById(id);
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace( />/g,"&gt;").replace(/"/g,"&quot;"); }
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; $("toastWrap").appendChild(t); setTimeout(()=>{ t.remove(); },2800); }
+
+/* ================= 桌面通知【完整修复】 ================= */
 let notifOk=false;
-function notify(title,body){
-  if(notifOk && "Notification" in window && Notification.permission==="granted"){ try{ new Notification(title,{body}); }catch(e){} }
+function refreshNotifStatus(){
+  if(!("Notification" in window)){
+    notifOk = false;
+    return;
+  }
+  notifOk = Notification.permission === "granted";
 }
+refreshNotifStatus();
+
+function notify(title,body){
+  if(!notifOk || !("Notification" in window) || Notification.permission!== "granted") return;
+  try{
+    const n = new Notification(title,{
+      body: body,
+      icon:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23deb887'/%3E%3Ccircle cx='32' cy='32' r='12' fill='%23222'/%3E%3C/svg%3E",
+      requireInteraction:true
+    });
+    n.onclick = function(){
+      window.focus();
+      n.close();
+    };
+  }catch(e){
+    console.warn("通知创建失败",e);
+  }
+}
+
+$("notifyBtn").onclick = async ()=>{
+  if(!("Notification" in window)){
+    toast("当前浏览器不支持桌面通知");
+    return;
+  }
+  if(window.location.protocol !== "https:" && window.location.protocol !== "file:"){
+    toast("桌面通知需要HTTPS环境，当前环境不支持");
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if(perm === "granted"){
+    notifOk = true;
+    toast("桌面通知已开启");
+    $("notifyBtn").textContent="通知已开启";
+    $("notifyBtn").disabled=true;
+  }else if(perm === "denied"){
+    toast("浏览器已拒绝通知权限，请在浏览器设置手动允许");
+  }else{
+    toast("通知权限未授予，邀请将仅在页面内弹窗提醒");
+  }
+};
+
 /* ================= 状态 ================= */
 const LOBBY_ID = "GoLobby-2026";
 let myName="", myPeerId="";
@@ -272,7 +319,7 @@ function becomeHost(){
   lobbyPeer.on("connection", conn=>{
     conn.on("open", ()=>{
       lobbyConns.set(conn.peer, conn);
-      // =========【需求：新客户端连上，立刻单点回发完整用户列表】=========
+      // 新客户端连上，立刻单点回发完整用户列表
       conn.send({type:"list", users:[...onlineUsers]});
 
       conn.on("data", d=> handleLobbyMsg(d, conn.peer));
@@ -372,7 +419,7 @@ function onInvite(d){
   pendingInvite = d;
   $("invFrom").textContent = d.from;
   $("inviteMask").classList.add("show");
-  notify("五子棋对局邀请", d.from + " 邀请你下棋，点击弹窗接受");
+  notify("五子棋对局邀请", d.from + " 邀请你下棋，点击通知切回页面");
 }
 // 邀请方收到 accept
 function onAccept(d){
@@ -619,13 +666,7 @@ function showChat(){ $("chatFloat").style.display="flex"; }
 cv.addEventListener("mousedown", e=>onBoardTap(e.clientX,e.clientY));
 cv.addEventListener("touchstart", e=>{ e.preventDefault(); const t=e.touches[0]; onBoardTap(t.clientX,t.clientY); }, {passive:false});
 window.addEventListener("resize", ()=>{ if(inGame||gameStarted||$("gameView").classList.contains("active")) sizeCanvas(); });
-$("notifyBtn").onclick = async ()=>{
-  if(!("Notification" in window)){ toast("当前浏览器不支持桌面通知"); return; }
-  const perm = await Notification.requestPermission();
-  notifOk = perm==="granted";
-  if(notifOk){ toast("桌面通知已开启"); $("notifyBtn").textContent="通知已开启"; $("notifyBtn").disabled=true; }
-  else toast("通知权限未授予，邀请将仅在页面内弹窗提醒");
-};
+
 /* 连接状态指示 */
 function setConn(ok,text){
   $("status").textContent = (ok?"● ":"○ ")+text;
