@@ -3,686 +3,222 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五子棋</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23deb887'/%3E%3Cpath d='M6 32h52M32 6v52M10 10l44 44M54 10 10 54' stroke='%237c5a2e' stroke-width='1.5'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23222'/%3E%3C/svg%3E">
+<title>联机五子棋</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{
-  padding:12px;max-width:850px;margin:0 auto;
-  font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  background:#fff;color:#222;
-}
-.title{font-size:20px;font-weight:700;margin:4px 0 4px}
-.sub{color:#666;font-size:13px;margin-bottom:12px}
-#ui{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-button{padding:8px 12px;font-size:14px;cursor:pointer;border-radius:3px}
-button.primary{background:#0066cc;color:#fff;border:1px solid #0066cc}
-button.ghost{background:#fff;border:1px solid #999;color:#222}
-button.danger{background:#cc3333;color:#fff;border:1px solid #cc3333}
-button:disabled{opacity:.5;cursor:not-allowed}
-input{font-size:16px;padding:7px 9px;border:1px solid #999;border-radius:3px}
-input:focus{outline:none;border-color:#0066cc}
-#status{color:#226;font-size:13px}
-.hint{color:#999;font-size:12.5px;line-height:1.6}
-/* ===== 视图切换 ===== */
-.view{display:none}
-.view.active{display:block}
-/* ===== 在线玩家 ===== */
-.panel{border:1px solid #999;margin-top:10px;padding:10px}
-.online-head{font-size:14px;font-weight:600;margin-bottom:6px}
-.online-head .count{font-weight:400;color:#666}
-.user-list{list-style:none;margin:0;padding:0}
-.user-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #eee;font-size:14px}
-.user-item:last-child{border-bottom:none}
-.user-item .nm{flex:1}
-.user-item.me .nm{color:#0066cc}
-.user-item.me .me-tag{color:#0066cc;font-size:12.5px}
-.empty-tip{color:#999;font-size:13.5px;padding:14px 0}
-/* ===== 对局 ===== */
-.game-bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:14px}
-.game-bar .oppo{color:#0066cc;font-weight:600}
-canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;width:100%;max-width:640px;touch-action:none}
-.turn-ind{font-size:14px;font-weight:600}
-.turn-ind.black{color:#222}
-.turn-ind.white{color:#0066cc}
-.turn-ind.draw{color:#884400}
-.game-ops{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-/* ===== 聊天（右下角浮动，白底） ===== */
-.chat-float{position:fixed;right:16px;bottom:16px;width:320px;max-width:calc(100vw - 32px);z-index:40;
-  background:#fff;border:1px solid #999;display:flex;flex-direction:column;max-height:min(420px,70vh);
-  box-shadow:0 4px 16px rgba(0,0,0,.15)}
-.chat-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #999}
-.chat-head .t{font-size:14px;font-weight:600;flex:1}
-.chat-head .mini{font-size:12px;color:#666}
-.chat-close{width:24px;height:24px;border:1px solid #999;background:#fff;cursor:pointer;font-size:14px;line-height:1;border-radius:3px}
-.chat-body{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-height:120px}
-.chat-msg{max-width:82%;padding:6px 10px;font-size:13.5px;line-height:1.45;word-break:break-word}
-.chat-msg.me{align-self:flex-end;color:#0066cc}
-.chat-msg.opp{align-self:flex-start;color:#222}
-.chat-msg .who{font-size:11.5px;color:#888}
-.chat-input{display:flex;gap:8px;padding:8px 10px;border-top:1px solid #999}
-.chat-input input{flex:1;min-width:0;font-size:16px}
-.chat-input button{font-size:13px;padding:7px 13px}
-/* ===== 弹窗 ===== */
-.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
-.modal-mask.show{display:flex}
-.modal{background:#fff;border:1px solid #999;border-radius:4px;padding:20px;width:min(360px,92vw)}
-.modal .mt{font-size:17px;font-weight:700;margin-bottom:6px}
-.modal .md{font-size:14px;color:#444;line-height:1.7;margin-bottom:16px}
-.modal .mbtns{display:flex;gap:10px;justify-content:flex-end}
-/* ===== toast ===== */
-.toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
-.toast{background:#fff;border:1px solid #999;color:#222;font-size:13.5px;padding:10px 16px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
-@media (max-width:640px){
-  .chat-float{left:16px;right:16px;width:auto}
-}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif}
+body{background:#f5f5f5;padding:16px;max-width:1000px;margin:0 auto}
+h2{text-align:center;margin-bottom:16px;color:#222}
+.panel{background:#fff;padding:14px;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 4px #00000018}
+input,button{padding:8px 10px;font-size:14px;border-radius:6px;border:1px solid #ccc}
+button{background:#407bff;color:#fff;border:none;cursor:pointer}
+button:disabled{background:#aaa;cursor:not-allowed}
+.oper-row{margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tip-text{font-size:12px;color:#555;margin-left:10px}
+#board{background:#deb887;margin:12px auto;display:block;border:4px solid #8b4513}
+.info{margin:8px 0;color:#333}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:9999;max-width:90%}
 </style>
 </head>
 <body>
-<div class="title">五子棋</div>
-<div class="sub">进入在线大厅找到对手，邀请对方对局；同意后进入独立棋盘房间，右下角可实时聊天。【主机掉线自动继任】</div>
-<!-- ===== 大厅视图 ===== -->
-<section id="lobbyView" class="view active">
-  <div id="ui">
-    <input id="nameInput" type="text" maxlength="14" placeholder="输入你的昵称" autocomplete="off">
-    <button id="enterBtn" class="primary">进入大厅</button>
-    <button id="notifyBtn" class="ghost">开启桌面通知</button>
-    <span id="status">等待操作</span>
+<h2>联机五子棋</h2>
+
+<div class="panel">
+  <div class="oper-row">
+    <input id="myId" placeholder="你的房间ID">
+    <button onclick="createRoom()">创建房间</button>
   </div>
-  <div class="panel">
-    <div class="online-head">在线玩家 <span id="onlineCount" class="count">(0)</span></div>
-    <ul id="userList" class="user-list">
-      <li class="empty-tip">大厅暂时空无一人，稍等片刻，或邀请朋友加入。</li>
-    </ul>
+  <div class="oper-row">
+    <input id="targetId" placeholder="输入对方房间ID">
+    <button onclick="connectPeer()">连接对手</button>
   </div>
-  <div id="lobbyStatus" class="hint" style="margin-top:8px">尚未进入大厅</div>
-</section>
-<!-- ===== 对局视图 ===== -->
-<section id="gameView" class="view">
-  <div class="game-bar">
-    <span>对手：<span id="oppoName" class="oppo">等待对手</span></span>
-    <span id="turnInd" class="turn-ind black">等待对手进入…</span>
+  <div class="oper-row">
+    <button id="notifyBtn">开启桌面通知</button>
+    <span class="tip-text">💡 如果没有弹出允许通知，请点击浏览器搜索栏右侧铃铛标志</span>
   </div>
-  <canvas id="board"></canvas>
-  <div class="game-ops">
-    <button id="resignBtn" class="danger">认输</button>
-    <button id="restartBtn" class="ghost">再来一局</button>
-    <button id="backBtn" class="ghost">返回大厅</button>
-  </div>
-</section>
-<!-- ===== 聊天（右下角浮动） ===== -->
-<div id="chatFloat" class="chat-float" style="display:none">
-  <div class="chat-head">
-    <span class="t">对局聊天</span>
-    <span class="mini" id="chatOpp"></span>
-    <button id="chatClose" class="chat-close" aria-label="收起聊天">×</button>
-  </div>
-  <div id="chatBody" class="chat-body"></div>
-  <div class="chat-input">
-    <input id="chatInput" type="text" maxlength="200" placeholder="发送消息…" autocomplete="off">
-    <button id="chatSend" class="primary">发送</button>
-  </div>
+  <div class="info">状态：<span id="status">等待连接</span></div>
 </div>
-<!-- ===== 邀请弹窗 ===== -->
-<div id="inviteMask" class="modal-mask">
-  <div class="modal">
-    <div class="mt"><span id="invFrom"></span></div>
-    <div class="md">邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（发起方先手执黑）。</div>
-    <div class="mbtns">
-      <button id="rejectBtn" class="ghost">拒绝</button>
-      <button id="acceptBtn" class="primary">接受</button>
-    </div>
-  </div>
-</div>
-<div id="toastWrap" class="toast-wrap"></div>
-<script src="https://fastly.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<canvas id="board" width="480" height="480"></canvas>
+
+<div class="toast" id="toastBox"></div>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <script>
-(function(){
-"use strict";
-/* ================= Cookie工具：存储客户端优先序号 clientSeq ================= */
-const CookieUtil = {
-  get(name){
-    const arr = document.cookie.split('; ');
-    for(let item of arr){
-      const kv = item.split('=');
-      if(kv[0]===name) return decodeURIComponent(kv[1]);
-    }
-    return null;
-  },
-  set(name,val,days=365){
-    let d = new Date();
-    d.setTime(d.getTime() + days*24*60*60*1000);
-    document.cookie = `${name}=${encodeURIComponent(val)};expires=${d.toUTCString()};path=/`;
-  }
-};
-// 获取或生成本机优先级序号，存在cookie，序号越小越优先继任主机
-let myClientSeq = CookieUtil.get("clientSeq");
-if(myClientSeq === null){
-  myClientSeq = Date.now() + Math.floor(Math.random()*1000);
-  CookieUtil.set("clientSeq", String(myClientSeq));
-}
-myClientSeq = Number(myClientSeq);
-
-/* ================= 工具 ================= */
 const $ = id => document.getElementById(id);
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace( />/g,"&gt;").replace(/"/g,"&quot;"); }
-function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; $("toastWrap").appendChild(t); setTimeout(()=>{ t.remove(); },2800); }
+const toastBox = $("toastBox");
+const canvas = $("board");
+const ctx = canvas.getContext("2d");
 
-/* ================= 桌面通知【完整修复】 ================= */
-let notifOk=false;
-function refreshNotifStatus(){
-  if(!("Notification" in window)){
-    notifOk = false;
-    return;
-  }
-  notifOk = Notification.permission === "granted";
-}
-refreshNotifStatus();
+let peer, conn;
+let myColor = 1;
+let turn = 1;
+let board = Array(15).fill().map(()=>Array(15).fill(0));
+let notifOk = false;
+const grid = 32;
 
-function notify(title,body){
-  if(!notifOk || !("Notification" in window) || Notification.permission!== "granted") return;
-  try{
-    const n = new Notification(title,{
-      body: body,
-      icon:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23deb887'/%3E%3Ccircle cx='32' cy='32' r='12' fill='%23222'/%3E%3C/svg%3E",
-      requireInteraction:true
-    });
-    n.onclick = function(){
-      window.focus();
-      n.close();
-    };
-  }catch(e){
-    console.warn("通知创建失败",e);
-  }
+// Toast提示
+function toast(msg){
+  toastBox.innerText = msg;
+  toastBox.style.display = "block";
+  setTimeout(()=>toastBox.style.display="none",2200);
 }
 
-$("notifyBtn").onclick = async ()=>{
+// ========== 通知按钮（已修复async，加提示） ==========
+$("notifyBtn").onclick = function(){
   if(!("Notification" in window)){
     toast("当前浏览器不支持桌面通知");
     return;
   }
-  if(window.location.protocol !== "https:" && window.location.protocol !== "file:"){
-    toast("桌面通知需要HTTPS环境，当前环境不支持");
+  if(window.location.protocol !== "https:"){
+    toast("桌面通知需要HTTPS环境");
     return;
   }
-  const perm = await Notification.requestPermission();
-  if(perm === "granted"){
-    notifOk = true;
-    toast("桌面通知已开启");
-    $("notifyBtn").textContent="通知已开启";
-    $("notifyBtn").disabled=true;
-  }else if(perm === "denied"){
-    toast("浏览器已拒绝通知权限，请在浏览器设置手动允许");
-  }else{
-    toast("通知权限未授予，邀请将仅在页面内弹窗提醒");
-  }
-};
-
-/* ================= 状态 ================= */
-const LOBBY_ID = "GoLobby-2026";
-let myName="", myPeerId="";
-let lobbyPeer=null, lobbyConn=null, amLobbyHost=false;
-let lobbyConns = new Map();           // 主机：id -> conn
-let onlineUsers = [];                 // [{id,name,seq}] 增加seq优先级
-let inLobby=false;
-let gamePeer=null, gameOut=null;      // 邀请方：对局主机 peer + 对方连接
-let gameConn=null;                    // 被邀请方：到对局房间的连接
-let inGame=false, myColor=null, oppColor=null;
-let gameStarted=false, gameOver=false;
-let oppName="", pendingInvite=null;
-let lobbyReconnectTimer = null; // 大厅重连定时器
-
-/* ================= 大厅进入 ================= */
-$("enterBtn").onclick = enterLobby;
-$("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") enterLobby(); });
-function enterLobby(){
-  myName = $("nameInput").value.trim();
-  if(!myName){ toast("请先填写昵称"); return; }
-  if(inLobby) return;
-  inLobby = true;
-  $("enterBtn").disabled = true;
-  setConn(true,"正在连接大厅…");
-  lobbyPeer = new Peer();
-  lobbyPeer.on("open", id=>{ myPeerId = id; tryJoin(); });
-  lobbyPeer.on("error", err=>{
-    if(err.type==="peer-unavailable") return;
-    if(!amLobbyHost) toast("大厅连接出错："+err.type);
-  });
-}
-
-function tryJoin(){
-  const conn = lobbyPeer.connect(LOBBY_ID, {reliable:true, serialization:"json"});
-  let settled=false;
-  conn.on("open", ()=>{
-    if(settled) return; settled=true;
-    lobbyConn = conn;
-    setConn(true,"已连接大厅");
-    $("lobbyStatus").textContent = "已进入大厅，等待对手…";
-    conn.send({type:"join", name:myName, id:myPeerId, seq:myClientSeq});
-    conn.on("data", d=> handleLobbyMsg(d, myPeerId));
-    conn.on("close", ()=>{
-      // 主机断开，执行继任选举逻辑
-      setConn(false,"大厅主机已离线，正在选举新主机…");
-      $("lobbyStatus").textContent = "大厅主机离线，选举继任主机";
-      lobbyConn = null;
-      triggerHostElection();
-    });
-  });
-  conn.on("error", err=>{ if(!settled && err.type==="peer-unavailable"){ settled=true; becomeHost(); } });
-  setTimeout(()=>{ if(!settled){ settled=true; becomeHost(); } }, 2500);
-}
-
-/** 主机选举：在线列表中seq最小的升级为主机；其他人等待后重连 */
-function triggerHostElection(){
-  clearTimeout(lobbyReconnectTimer);
-  // 过滤仍然存活的用户集合
-  if(onlineUsers.length ===0){
-    // 当前本地没有用户列表，直接本机升为主机
-    becomeHost();
-    return;
-  }
-  // seq从小到大排序，选出优先级最高继任者
-  const sorted = [...onlineUsers].sort((a,b)=> a.seq - b.seq);
-  const nextHost = sorted[0];
-  if(nextHost.id === myPeerId){
-    toast("你被选举为新大厅主机");
-    becomeHost();
-  }else{
-    toast(`继任主机为 ${nextHost.name}，准备重连`);
-    // 延迟后自动重连大厅
-    lobbyReconnectTimer = setTimeout(()=>{
-      if(inLobby && !amLobbyHost){
-        tryJoin();
-      }
-    }, 2200);
-  }
-}
-
-function becomeHost(){
-  if(!inLobby) return;
-  try{ if(lobbyPeer) lobbyPeer.destroy(); }catch(e){}
-  lobbyConn = null; amLobbyHost = true;
-  lobbyPeer = new Peer(LOBBY_ID, {debug:0});
-  lobbyPeer.on("open", id=>{
-    myPeerId = id;
-    onlineUsers = [{id:myPeerId, name:myName, seq:myClientSeq}];
-    renderLobby();
-    setConn(true,"你是大厅主机");
-    $("lobbyStatus").textContent = "你是大厅主机，可等待他人加入。";
-  });
-  lobbyPeer.on("error", err=>{
-    if(err.type==="unavailable-id" || err.type==="id-taken"){
-      amLobbyHost=false;
-      tryJoin();
-    }
-  });
-  lobbyPeer.on("connection", conn=>{
-    conn.on("open", ()=>{
-      lobbyConns.set(conn.peer, conn);
-      // 新客户端连上，立刻单点回发完整用户列表
-      conn.send({type:"list", users:[...onlineUsers]});
-
-      conn.on("data", d=> handleLobbyMsg(d, conn.peer));
-      conn.on("close", ()=>{
-        lobbyConns.delete(conn.peer);
-        removeUser(conn.peer);
-        broadcastLobby();
-      });
-    });
-  });
-}
-
-function handleLobbyMsg(d, fromId){
-  switch(d.type){
-    case "join":
-      if(!onlineUsers.find(u=>u.id===d.id)){ onlineUsers.push({id:d.id, name:d.name, seq:d.seq}); }
-      broadcastLobby();
-      break;
-    case "list":
-      onlineUsers = d.users;
-      renderLobby();
-      break;
-    case "invite":
-      if(d.to===myPeerId){ onInvite(d); } else relayTo(d.to, d);
-      break;
-    case "accept":
-      if(d.to===myPeerId){ onAccept(d); } else relayTo(d.to, d);
-      break;
-    case "reject":
-      if(d.to===myPeerId){ onReject(d); } else relayTo(d.to, d);
-      break;
-    case "leave":
-      removeUser(d.id);
-      broadcastLobby();
-      break;
-  }
-}
-function relayTo(targetId, msg){ const c = lobbyConns.get(targetId); if(c && c.open) c.send(msg); }
-function removeUser(id){
-  onlineUsers = onlineUsers.filter(u=>u.id!==id);
-  renderLobby();
-}
-function lobbySend(msg){
-  if(amLobbyHost) relayTo(msg.to, msg);
-  else if(lobbyConn && lobbyConn.open) lobbyConn.send(msg);
-}
-function broadcastLobby(){
-  const list = onlineUsers.map(u=>({id:u.id,name:u.name,seq:u.seq}));
-  lobbyConns.forEach(c=>{ if(c.open) c.send({type:"list", users:list}); });
-  onlineUsers = list;
-  renderLobby();
-}
-/* ================= 在线列表渲染 ================= */
-function renderLobby(){
-  $("onlineCount").textContent = "(" + onlineUsers.length + ")";
-  const ul = $("userList");
-  ul.innerHTML = "";
-  if(onlineUsers.length===0){
-    const li=document.createElement("li"); li.className="empty-tip"; li.textContent="大厅暂时空无一人，稍等片刻，或邀请朋友加入。";
-    ul.appendChild(li); return;
-  }
-  onlineUsers.forEach(u=>{
-    const li=document.createElement("li"); li.className="user-item"+(u.id===myPeerId?" me":"");
-    const nm=document.createElement("span"); nm.className="nm"; nm.textContent=u.name;
-    li.appendChild(nm);
-    if(u.id===myPeerId){
-      const tag=document.createElement("span"); tag.className="me-tag"; tag.textContent="（你）"; li.appendChild(tag);
+  Notification.requestPermission().then(function(perm){
+    if(perm === "granted"){
+      notifOk = true;
+      toast("✅桌面通知已开启");
+      $("notifyBtn").textContent="通知已开启";
+      $("notifyBtn").disabled=true;
+    }else if(perm === "denied"){
+      toast("❌浏览器已拒绝通知，请在地址栏锁图标手动设置权限");
     }else{
-      const b=document.createElement("button"); b.className="primary"; b.textContent="邀请对局";
-      b.onclick = ()=> sendInvite(u);
-      li.appendChild(b);
+      toast("⚠️通知未授予，仅网页弹窗生效");
     }
-    ul.appendChild(li);
+    console.log("通知权限结果：",perm);
   });
-}
-/* ================= 邀请流程 ================= */
-function sendInvite(target){
-  if(inGame){ toast("你正在对局中，请先结束"); return; }
-  if(gamePeer){ toast("请等待上一次邀请处理完成"); return; }
-  toast("已发送邀请给 "+target.name);
-  gamePeer = new Peer();
-  gamePeer.on("open", gameId=>{
-    gameOut=null; myColor="black"; oppColor="white"; oppName="";
-    enterGameView(target.name, "black");
-    $("turnInd").textContent = "等待 "+target.name+" 接受…";
-    gamePeer.on("connection", c=>{
-      c.on("open", ()=>{ gameOut=c; startMatch("black"); });
-      c.on("data", d=> handleGameData(d));
-      c.on("close", ()=>{ if(gameStarted && !gameOver){ toast("对方已离开对局"); gameStarted=false; } });
-    });
-    lobbySend({type:"invite", from:myName, fromId:myPeerId, to:target.id, gameId});
-  });
-  gamePeer.on("error", err=>{ toast("创建对局房间失败，请重试"); gamePeer=null; });
-}
-// 被邀请方收到 invite
-function onInvite(d){
-  pendingInvite = d;
-  $("invFrom").textContent = d.from;
-  $("inviteMask").classList.add("show");
-  notify("五子棋对局邀请", d.from + " 邀请你下棋，点击通知切回页面");
-}
-// 邀请方收到 accept
-function onAccept(d){
-  if(gamePeer){ toast(d.from+" 已接受邀请，正在进入对局…"); }
-}
-// 邀请方收到 reject
-function onReject(d){
-  toast(d.from+" 拒绝了你的邀请");
-  try{ if(gamePeer){ gamePeer.destroy(); gamePeer=null; } }catch(e){}
-  $("gameView").classList.remove("active");
-  $("lobbyView").classList.add("active");
-  gameStarted=false; gameOver=false;
-  $("chatFloat").style.display="none";
-  resetBoard();
-}
-$("rejectBtn").onclick = ()=>{
-  if(pendingInvite){
-    lobbySend({type:"reject", from:myName, fromId:myPeerId, to:pendingInvite.fromId, gameId:pendingInvite.gameId});
-    pendingInvite=null;
-  }
-  $("inviteMask").classList.remove("show");
 };
-$("acceptBtn").onclick = ()=>{
-  if(!pendingInvite){ $("inviteMask").classList.remove("show"); return; }
-  const inv = pendingInvite; pendingInvite=null;
-  $("inviteMask").classList.remove("show");
-  myColor="white"; oppColor="black";
-  lobbySend({type:"accept", from:myName, fromId:myPeerId, to:inv.fromId, gameId:inv.gameId});
-  gameConn = lobbyPeer.connect(inv.gameId, {reliable:true, serialization:"json"});
-  gameConn.on("open", ()=>{ gameOut=gameConn; enterGameView(inv.from, "white"); startMatch("white"); });
-  gameConn.on("data", d=> handleGameData(d));
-  gameConn.on("close", ()=>{ if(gameStarted && !gameOver){ toast("与对手的连接已断开"); } });
-  gameConn.on("error", err=>{ toast("加入对局失败，请重试"); });
-  toast("已接受 "+inv.from+" 的邀请");
-};
-/* ================= 对局视图 ================= */
-function enterGameView(opp, color){
-  oppName=opp; myColor=color; oppColor = color==="black"?"white":"black";
-  $("oppoName").textContent = opp;
-  $("chatOpp").textContent = "与 "+opp+" 对局";
-  $("lobbyView").classList.remove("active");
-  $("gameView").classList.add("active");
-  $("chatFloat").style.display = "flex";
-  sizeCanvas();
-  showChat();
+// 发送系统通知
+function notifySend(title,body){
+  if(!notifOk) return;
+  new Notification(title,{
+    body:body,
+    requireInteraction:true
+  })
 }
-function startMatch(color){
-  gameStarted=true; gameOver=false;
-  turnVal="black";
-  sizeCanvas();
-  resetBoard();
-  setTurn("black");
-  toast(color==="black" ? "对局开始，你执黑先行" : "对局开始，你执白后手");
+
+// ========== Peer联机逻辑 ==========
+function createRoom(){
+  const id = $("myId").value.trim();
+  if(!id) return toast("请填写房间ID");
+  peer = new Peer(id);
+  peer.on("open",()=>{
+    $("status").innerText = `房间${id}已创建，等待对手加入`;
+  })
+  peer.on("connection",c=>bindConn(c));
+  peer.on("error",e=>toast("创建失败："+e.type));
 }
-function setTurn(color){
-  turnVal = color;
-  const el=$("turnInd");
-  el.className = "turn-ind " + (color==="black"?"black":"white");
-  el.textContent = (color===myColor ? "轮到你（"+(color==="black"?"黑":"白")+"）" : "对方思考中…");
+function connectPeer(){
+  const tid = $("targetId").value.trim();
+  const mid = $("myId").value.trim();
+  if(!tid||!mid) return toast("请填写双方ID");
+  peer = new Peer(mid);
+  peer.on("open",()=>{
+    $("status").innerText = "正在连接...";
+    const c = peer.connect(tid);
+    bindConn(c);
+  })
 }
-/* 棋盘 */
-const SIZE=15;
-let board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
-let lastMove=null;
-const cv=$("board"); const ctx=cv.getContext("2d");
-let CELL, PAD;
-function sizeCanvas(){
-  const rect = cv.parentElement.getBoundingClientRect();
-  const dpr = window.devicePixelRatio||1;
-  const px = Math.min(640, rect.width);
-  cv.width = px*dpr; cv.height = px*dpr;
-  cv.style.width = px+"px"; cv.style.height = px+"px";
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  const w = px;
-  PAD = Math.max(18, Math.round(w*0.045));
-  CELL = (w-2*PAD)/(SIZE-1);
-  drawBoard();
+function bindConn(c){
+  conn = c;
+  conn.on("open",()=>{
+    $("status").innerText = "✅对战已连接";
+    toast("对手已连上！");
+    notifySend("五子棋","对手加入对局！");
+  })
+  conn.on("data",d=>{
+    if(d.type==="put"){
+      board[d.y][d.x] = d.color;
+      turn = d.color===1?2:1;
+      drawBoard();
+      checkWin();
+    }
+  })
+  conn.on("close",()=>{
+    $("status").innerText = "连接断开";
+    toast("对手离线");
+  })
 }
+
+// ========== 棋盘绘制 & 落子 ==========
 function drawBoard(){
-  const w = cv.width / (window.devicePixelRatio||1);
-  ctx.clearRect(0,0,w,w);
-  ctx.fillStyle="#deb887"; ctx.fillRect(0,0,w,w);
-  ctx.lineWidth=1; ctx.strokeStyle="#7c5a2e";
-  ctx.beginPath();
-  for(let i=0;i<SIZE;i++){
-    const p=PAD+i*CELL;
-    ctx.moveTo(PAD,p); ctx.lineTo(w-PAD,p);
-    ctx.moveTo(p,PAD); ctx.lineTo(p,w-PAD);
+  ctx.fillStyle="#deb887";
+  ctx.fillRect(0,0,480,480);
+  ctx.strokeStyle="#333";
+  for(let i=0;i<15;i++){
+    ctx.beginPath();
+    ctx.moveTo(grid/2+i*grid, grid/2);
+    ctx.lineTo(grid/2+i*grid, 480-grid/2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(grid/2, grid/2+i*grid);
+    ctx.lineTo(480-grid/2, grid/2+i*grid);
+    ctx.stroke();
   }
-  ctx.stroke();
-  const stars=[[3,3],[3,11],[11,3],[11,11],[7,7]];
-  ctx.fillStyle="#7c5a2e";
-  stars.forEach(s=>{ ctx.beginPath(); ctx.arc(PAD+s[0]*CELL,PAD+s[1]*CELL,CELL*0.14,0,7); ctx.fill(); });
-  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){
-    if(board[y][x]) drawStone(x,y,board[y][x]===1);
-  }
-  if(lastMove){
-    const px=PAD+lastMove.x*CELL, py=PAD+lastMove.y*CELL;
-    ctx.strokeStyle = board[lastMove.y][lastMove.x]===1 ? "#fff" : "#000";
-    ctx.beginPath(); ctx.arc(px,py,CELL*0.16,0,7); ctx.stroke();
-  }
-}
-function drawStone(x,y,black){
-  const px=PAD+x*CELL, py=PAD+y*CELL, r=CELL*0.42;
-  ctx.beginPath(); ctx.arc(px+1,py+2,r,0,7); ctx.fillStyle="rgba(0,0,0,.25)"; ctx.fill();
-  const g=ctx.createRadialGradient(px-r*0.3,py-r*0.3,r*0.1,px,py,r);
-  if(black){ g.addColorStop(0,"#5a5a5a"); g.addColorStop(1,"#0a0a0a"); }
-  else{ g.addColorStop(0,"#ffffff"); g.addColorStop(1,"#c8c8c8"); }
-  ctx.beginPath(); ctx.arc(px,py,r,0,7); ctx.fillStyle=g; ctx.fill();
-  ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,.2)"; ctx.stroke();
-}
-function posToCell(clientX,clientY){
-  const r=cv.getBoundingClientRect();
-  const x=(clientX-r.left)*(cv.width/r.width)/(window.devicePixelRatio||1);
-  const y=(clientY-r.top)*(cv.height/r.height)/(window.devicePixelRatio||1);
-  const cx=Math.round((x-PAD)/CELL), cy=Math.round((y-PAD)/CELL);
-  if(cx<0||cx>SIZE-1||cy<0||cy>SIZE-1) return null;
-  return {x:cx,y:cy};
-}
-function onBoardTap(clientX,clientY){
-  if(!gameStarted||gameOver) return;
-  const c=posToCell(clientX,clientY); if(!c) return;
-  if(turnOf()!==myColor) return;
-  if(board[c.y][c.x]!==0) return;
-  place(c.x,c.y,myColor==="black"?1:2);
-  lastMove=c;
-  sendMove(c.x,c.y,myColor);
-
-  // 判断棋盘填满平局
-  let filled = true;
-  outer:for(let yy=0;yy<SIZE;yy++)for(let xx=0;xx<SIZE;xx++){ if(board[yy][xx]===0){ filled=false; break outer; } }
-  if(filled){
-    endGame("draw");
-    return;
-  }
-
-  if(checkWin(c.x,c.y)){ endGame(myColor); return; }
-  setTurn(oppColor);
-}
-function turnOf(){ return turnVal; } let turnVal="black";
-function place(x,y,v){ board[y][x]=v; drawBoard(); }
-function sendMove(x,y,color){ if(gameOut && gameOut.open) gameOut.send({type:"move",x,y,color}); }
-/* 五连检测 */
-function checkWin(x,y){
-  const v=board[y][x];
-  const dirs=[[1,0],[0,1],[1,1],[1,-1]];
-  for(const [dx,dy] of dirs){
-    let cnt=1;
-    for(let s=1;s<5;s++){ const nx=x+dx*s,ny=y+dy*s; if(nx<0||ny<0||nx>=SIZE||ny>=SIZE||board[ny][nx]!==v)break; cnt++; }
-    for(let s=1;s<5;s++){ const nx=x-dx*s,ny=y-dy*s; if(nx<0||ny<0||nx>=SIZE||ny>=SIZE||board[ny][nx]!==v)break; cnt++; }
-    if(cnt>=5) return true;
-  }
-  return false;
-}
-function resetBoard(){ board=Array.from({length:SIZE},()=>Array(SIZE).fill(0)); lastMove=null; drawBoard(); }
-function endGame(winner){
-  gameOver=true; gameStarted=false;
-  const win = winner===myColor;
-  if(winner==="draw"){
-    $("turnInd").className="turn-ind draw";
-    $("turnInd").textContent="本局平局！棋盘已满";
-    notify("五子棋对局结束","棋盘填满，本局平局");
-  }else{
-    $("turnInd").className="turn-ind "+winner;
-    $("turnInd").textContent = win ? "你赢了！" : "你输了";
-    notify(win?"你赢了五子棋":"五子棋对局结束", win?"恭喜获胜":"对方获胜");
+  // 星位
+  const stars = [[3,3],[11,3],[7,7],[3,11],[11,11]];
+  ctx.fillStyle="#333";
+  stars.forEach(([x,y])=>{
+    ctx.beginPath();
+    ctx.arc(grid/2+x*grid, grid/2+y*grid,4,0,Math.PI*2);
+    ctx.fill();
+  })
+  // 棋子
+  for(let y=0;y<15;y++){
+    for(let x=0;x<15;x++){
+      const v = board[y][x];
+      if(!v) continue;
+      ctx.beginPath();
+      ctx.arc(grid/2+x*grid, grid/2+y*grid,13,0,Math.PI*2);
+      ctx.fillStyle = v===1?"#000":"#fff";
+      ctx.fill();
+      ctx.strokeStyle="#333";
+      ctx.stroke();
+    }
   }
 }
-/* 对局消息 */
-function handleGameData(d){
-  switch(d.type){
-    case "move":
-      if(board[d.y] && board[d.y][d.x]!==undefined && board[d.y][d.x]===0){
-        place(d.x,d.y, d.color==="black"?1:2);
-        lastMove={x:d.x,y:d.y};
-        let filled = true;
-        outer:for(let yy=0;yy<SIZE;yy++)for(let xx=0;xx<SIZE;xx++){ if(board[yy][xx]===0){ filled=false; break outer; } }
-        if(filled){
-          endGame("draw");
-        }else if(checkWin(d.x,d.y)){
-          endGame(d.color);
+canvas.onclick = e=>{
+  if(!conn) return toast("还没有连接对手");
+  if(turn!==myColor) return toast("不是你的回合");
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  let x = Math.round((mx-grid/2)/grid);
+  let y = Math.round((my-grid/2)/grid);
+  if(x<0||x>=15||y<0||y>=15||board[y][x]) return;
+  board[y][x] = myColor;
+  conn.send({type:"put",x,y,color:myColor});
+  turn = myColor===1?2:1;
+  drawBoard();
+  checkWin();
+}
+function checkWin(){
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  for(let y=0;y<15;y++){
+    for(let x=0;x<15;x++){
+      const c = board[y][x];
+      if(!c) continue;
+      for(let [dx,dy] of dirs){
+        let cnt=1;
+        for(let s=1;s<5;s++){
+          const nx=x+dx*s,ny=y+dy*s;
+          if(nx<0||ny<0||nx>=15||ny>=15||board[ny][nx]!==c) break;
+          cnt++;
         }
-        else setTurn(d.color==="black"?"white":"black");
+        for(let s=1;s<5;s++){
+          const nx=x-dx*s,ny=y-dy*s;
+          if(nx<0||ny<0||nx>=15||ny>=15||board[ny][nx]!==c) break;
+          cnt++;
+        }
+        if(cnt>=5){
+          toast(c===1?"黑方获胜！":"白方获胜！");
+          notifySend("对局结束", c===1?"黑方获胜！":"白方获胜！");
+          return;
+        }
       }
-      break;
-    case "chat": addChat(d.name, d.text); break;
-    case "resign":
-      gameOver=true; gameStarted=false;
-      $("turnInd").className="turn-ind black"; $("turnInd").textContent="对方认输，你赢了";
-      break;
-    case "restart":
-      startMatch(myColor); toast("对方发起再来一局");
-      break;
-    case "leave":
-      toast("对手已离开对局");
-      break;
+    }
   }
 }
-/* 对局操作 */
-$("resignBtn").onclick = ()=>{
-  if(!gameStarted) return;
-  gameOver=true; gameStarted=false;
-  if(gameOut && gameOut.open) gameOut.send({type:"resign"});
-  $("turnInd").className="turn-ind black"; $("turnInd").textContent="你认输了";
-};
-$("restartBtn").onclick = ()=>{
-  if(!gameStarted && !gameOver){ toast("对局尚未开始"); return; }
-  if(gameOut && gameOut.open) gameOut.send({type:"restart"});
-  startMatch(myColor);
-};
-$("backBtn").onclick = ()=>{
-  leaveGame();
-  $("gameView").classList.remove("active");
-  $("lobbyView").classList.add("active");
-  renderLobby();
-};
-function leaveGame(){
-  if(gameOut && gameOut.open) gameOut.send({type:"leave"});
-  try{ if(gamePeer){ gamePeer.destroy(); gamePeer=null; } }catch(e){}
-  gameConn=null; gameOut=null; gameStarted=false; gameOver=false;
-  $("chatFloat").style.display="none"; $("chatBody").innerHTML="";
-  resetBoard();
-}
-/* ================= 聊天 ================= */
-function addChat(name,text){
-  const box=$("chatBody");
-  const d=document.createElement("div");
-  d.className="chat-msg "+(name===myName?"me":"opp");
-  if(name!==myName){ const w=document.createElement("div"); w.className="who"; w.textContent=name; d.appendChild(w); }
-  const t=document.createElement("div"); t.textContent=text; d.appendChild(t);
-  box.appendChild(d); box.scrollTop=box.scrollHeight;
-}
-function sendChatMsg(){
-  const v=$("chatInput").value.trim(); if(!v) return;
-  addChat(myName,v);
-  if(gameOut && gameOut.open) gameOut.send({type:"chat", name:myName, text:v});
-  $("chatInput").value="";
-}
-$("chatSend").onclick=sendChatMsg;
-$("chatInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendChatMsg(); });
-$("chatClose").onclick=()=>{ $("chatFloat").style.display="none"; };
-function showChat(){ $("chatFloat").style.display="flex"; }
-/* ================= 事件绑定（棋盘 + 通知） ================= */
-cv.addEventListener("mousedown", e=>onBoardTap(e.clientX,e.clientY));
-cv.addEventListener("touchstart", e=>{ e.preventDefault(); const t=e.touches[0]; onBoardTap(t.clientX,t.clientY); }, {passive:false});
-window.addEventListener("resize", ()=>{ if(inGame||gameStarted||$("gameView").classList.contains("active")) sizeCanvas(); });
-
-/* 连接状态指示 */
-function setConn(ok,text){
-  $("status").textContent = (ok?"● ":"○ ")+text;
-}
-function resetLobby(){
-  clearTimeout(lobbyReconnectTimer);
-  inLobby=false; amLobbyHost=false; lobbyConn=null; onlineUsers=[];
-  $("enterBtn").disabled=false;
-  renderLobby();
-  try{ if(lobbyPeer){ lobbyPeer.destroy(); lobbyPeer=null; } }catch(e){}
-}
-/* 预填昵称：go.html?name=xxx */
-const qp=new URLSearchParams(location.search);
-const qn=qp.get("name");
-if(qn) $("nameInput").value=qn;
-})();
+drawBoard();
 </script>
 </body>
 </html>
