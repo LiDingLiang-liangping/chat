@@ -24,6 +24,7 @@ input{font-size:16px;padding:7px 9px;border:1px solid #999;border-radius:3px}
 input:focus{outline:none;border-color:#0066cc}
 #status{color:#226;font-size:13px}
 .hint{color:#999;font-size:12.5px;line-height:1.6}
+.notify-tip{color:#555;font-size:12px;margin-left:8px}
 /* ===== 视图切换 ===== */
 .view{display:none}
 .view.active{display:block}
@@ -87,6 +88,7 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
     <input id="nameInput" type="text" maxlength="14" placeholder="输入你的昵称" autocomplete="off">
     <button id="enterBtn" class="primary">进入大厅</button>
     <button id="notifyBtn" class="ghost">开启桌面通知</button>
+    <span class="notify-tip">💡 如果没有弹出允许通知，请点击浏览器搜索栏右侧铃铛标志</span>
     <span id="status">等待操作</span>
   </div>
   <div class="panel">
@@ -615,17 +617,35 @@ $("chatSend").onclick=sendChatMsg;
 $("chatInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendChatMsg(); });
 $("chatClose").onclick=()=>{ $("chatFloat").style.display="none"; };
 function showChat(){ $("chatFloat").style.display="flex"; }
-/* ================= 事件绑定（棋盘 + 通知） ================= */
+/* ================= 事件绑定（棋盘 + 通知【已修复，移除async】） ================= */
 cv.addEventListener("mousedown", e=>onBoardTap(e.clientX,e.clientY));
 cv.addEventListener("touchstart", e=>{ e.preventDefault(); const t=e.touches[0]; onBoardTap(t.clientX,t.clientY); }, {passive:false});
 window.addEventListener("resize", ()=>{ if(inGame||gameStarted||$("gameView").classList.contains("active")) sizeCanvas(); });
-$("notifyBtn").onclick = async ()=>{
-  if(!("Notification" in window)){ toast("当前浏览器不支持桌面通知"); return; }
-  const perm = await Notification.requestPermission();
-  notifOk = perm==="granted";
-  if(notifOk){ toast("桌面通知已开启"); $("notifyBtn").textContent="通知已开启"; $("notifyBtn").disabled=true; }
-  else toast("通知权限未授予，邀请将仅在页面内弹窗提醒");
+
+$("notifyBtn").onclick = function(){
+  if(!("Notification" in window)){
+    toast("当前浏览器不支持桌面通知");
+    return;
+  }
+  if(window.location.protocol !== "https:"){
+    toast("桌面通知需要HTTPS环境");
+    return;
+  }
+  Notification.requestPermission().then(function(perm){
+    if(perm === "granted"){
+      notifOk = true;
+      toast("✅桌面通知已开启");
+      $("notifyBtn").textContent="通知已开启";
+      $("notifyBtn").disabled=true;
+    }else if(perm === "denied"){
+      toast("❌浏览器已拒绝通知，请在地址栏锁图标手动设置权限");
+    }else{
+      toast("⚠️通知未授予，仅网页弹窗生效");
+    }
+    console.log("通知权限结果：",perm);
+  });
 };
+
 /* 连接状态指示 */
 function setConn(ok,text){
   $("status").textContent = (ok?"● ":"○ ")+text;
