@@ -49,9 +49,21 @@ a:hover{color:#dd3333}
 button{padding:8px 12px;font-size:14px}
 #status{color:#226;font-size:13px}
 small.hint{color:#999}
+
+/* 昵称门禁 */
+#nickGate{position:fixed;inset:0;background:rgba(255,255,255,.96);display:flex;align-items:center;justify-content:center;z-index:99}
+#nickGate .box{background:#fff;border:1px solid #ccc;border-radius:10px;padding:24px 28px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+#nickGate h2{font-size:18px;margin-bottom:12px}
+#nickGate input{padding:10px;font-size:16px;width:220px;margin-bottom:12px}
+#nickGate button{padding:10px 24px;font-size:15px;background:#2f6fed;color:#fff;border:none;border-radius:5px;cursor:pointer}
 </style>
 </head>
 <body>
+<div id="nickGate"><div class="box">
+<h2>👋 先输入你的昵称</h2>
+<input id="nickInput" placeholder="昵称，进入后也可修改" maxlength="20">
+<div><button id="nickBtn">进入聊天室</button></div>
+</div></div>
 <div id="ui">
   <input id="nameInput" placeholder="输入你的昵称" />
   <input id="roomInput" placeholder="房间ID，如Chat 1" value="Chat 1">
@@ -83,6 +95,26 @@ let roomId;
 let myName = "";
 let connections = new Map();
 let notificationEnabled = false;
+// 昵称门禁：进入 main 前必须先有昵称
+(function(){
+  const gate=document.getElementById("nickGate");
+  const nickInput=document.getElementById("nickInput");
+  const nickBtn=document.getElementById("nickBtn");
+  const saved=localStorage.getItem("chat_nick")||"";
+  nameInput.value=saved;
+  function tryEnter(){
+    const n=nickInput.value.trim();
+    if(!n)return alert("请输入昵称！");
+    localStorage.setItem("chat_nick",n);
+    nameInput.value=n;
+    myName=n;
+    gate.style.display="none";
+  }
+  if(saved){myName=saved;gate.style.display="none";}
+  else setTimeout(()=>nickInput.focus(),100);
+  nickBtn.onclick=tryEnter;
+  nickInput.addEventListener("keydown",e=>{if(e.key==="Enter")tryEnter();});
+})();
 // 转义HTML，防止XSS
 function esc(s){
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -120,7 +152,7 @@ function renderLinks(text){
   // 固定同步：画板固定进 Draw 1 房间，狼人杀固定进 Play 1 房间，世界固定进 World 1 房间，五子棋固定进 Go 1房间，仅带昵称
   const nameQ = encodeURIComponent(myName||"匿名");
   const boardUrl = `board.html?room=${encodeURIComponent("Draw 1")}&name=${nameQ}`;
-  const wolfUrl = `wolf.html?room=${encodeURIComponent("Play 1")}&name=${nameQ}`;
+  const wolfUrl = `wolf.html?room=${encodeURIComponent(roomId || roomInput.value.trim() || "Chat 1")}&name=${nameQ}`;
   const worldUrl = `world.html?room=${encodeURIComponent("World 1")}&name=${nameQ}`;
   const goUrl = `go.html?room=${encodeURIComponent("Go 1")}&name=${nameQ}`;
   let out = esc(text);
