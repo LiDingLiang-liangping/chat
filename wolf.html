@@ -96,6 +96,11 @@ small.mut{color:#999;font-size:12px}
           <button id="endBtn" class="danger" style="display:none">提前结束</button>
           <button id="resetBtn" style="display:none">🔄 再来一局</button>
         </div>
+        <div class="host-ctrl" id="transferRow" style="display:none;margin-top:6px">
+          <span style="font-size:13px">主机转让给</span>
+          <select id="transferSel"></select>
+          <button id="transferBtn">确认转让</button>
+        </div>
         <div class="mut">（3秒确认期内不可改参与）</div>
       </div>
 
@@ -170,6 +175,7 @@ small.mut{color:#999;font-size:12px}
     <label>发言时长 <input type="number" id="speakTimeInput" value="60" min="15" max="300" style="width:64px"> 秒</label>
     <label>单次加时 <input type="number" id="extendTimeInput" value="30" min="15" max="300" style="width:64px"> 秒（≥15）</label>
     <label>加时上限 <input type="number" id="extendMaxInput" value="3" min="0" max="9" style="width:56px"> 次（0=无加时）</label>
+    <label>参加确认时长 <input type="number" id="confirmSecInput" value="10" min="3" max="30" style="width:56px"> 秒</label>
     <label style="line-height:1.5"><input type="checkbox" id="revealChk"> 对观察者公开全局信息<br><small class="mut">（全员身份 + 夜晚行动，默认关闭）</small></label>
   </div>
 </div>
@@ -209,7 +215,7 @@ let phase="lobby",day=0,gameRunning=false,gameOver=false,paused=false;
 let myRole=null,myPlayer=null,isSpectator=true,connected=false;
 let counts={wolf:0,villager:0,seer:0,witch:0,hunter:0},deadList=[];
 let godHistory=[];
-let settings={speakTime:60,extendTime:30,extendMax:3,revealToObs:false};
+let settings={speakTime:60,extendTime:30,extendMax:3,revealToObs:false,confirmSec:10};
 let speakRound=0,speakDone=new Set();
 let confirmTimer=null,confirmLeft=0,myConfirmed=false;
 let restarting=false,ackSet=new Set(),ackTimer=null;
@@ -437,7 +443,11 @@ function connCanSeeObs(id){
   if(!p)return true;          // 非玩家=旁观者
   return !p.alive;
 }
+let _lastChatSig="",_lastChatT=0;
 function chatBroadcast(channel,name,text){
+  const sig=channel+"|"+name+"|"+text,now=Date.now();
+  if(sig===_lastChatSig&&now-_lastChatT<900)return; // 防回声循环
+  _lastChatSig=sig;_lastChatT=now;
   const msg={type:"chat",channel,name,text};
   broadcast(msg); // 玩家频道：全员收（存活端不渲染旁观消息）
   if(channel==="player")chatAdd(`<b>${esc(name)}</b>：${esc(text)}`,"c-me",channel);
@@ -454,6 +464,17 @@ function syncRoster(){
   broadcast({type:"roster",players:players.map(p=>({id:p.id,name:p.name,alive:p.alive})),observers:obs});
   renderRoster();
   window._obsNames=obs;
+  if(isHost){
+    const sel=$("transferSel");
+    if(sel){
+      sel.innerHTML='<option value="">选择成员…</option>';
+      for(const id of lobbyIds){
+        if(id===meId)continue;
+        const c=connections.get(id);
+        if(c&&c._name){const o=document.createElement("option");o.value=id;o.textContent=c._name;sel.appendChild(o);}
+      }
+    }
+  }
 }
 function syncPublic(){
   counts={wolf:0,villager:0,seer:0,witch:0,hunter:0};
@@ -707,8 +728,21 @@ function handleAct(from,msg){
 
 // ---- 消息处理（主机本地与客户端共用渲染） ----
 function localHandle(msg){
+  if(msg.type==="hostClosing"){
+    window._migrating=true;
+    if(msg.next===meId){
+      $("status").textContent="你将成为新主机…";
+      sysMsg("主机已转让给你，正在接管…");
+      setTimeout(()=>{try{peer.destroy();}catch(e){} connections.clear(); becomeHost();},1200);
+    }else{
+      sysMsg("主机转让中，自动重连…");
+      reconnectLoop();
+    }
+    return;
+  }
   if(msg.type==="hello"){
     connected=true;
+    window._migrating=false;
     meId=msg.youId;
     phase=msg.phase;
     players=(msg.players||[]).map(p=>({...p}));
@@ -784,6 +818,9 @@ function localHandle(msg){
     if(msg.ch==="obs"){if(canSeeObs())annMsg(msg.text,"obs");}
     else annMsg(msg.text,"player");
   }else if(msg.type==="chat"){
+    const csig=msg.channel+"|"+msg.name+"|"+msg.text,cnow=Date.now();
+    if(csig===_lastChatSig&&cnow-_lastChatT<900)return; // 防回声循环
+    _lastChatSig=csig;_lastChatT=cnow;
     if(msg.channel==="obs"){if(canSeeObs())chatAdd(`<b>${esc(msg.name)}</b>：${esc(msg.text)}`,"", "obs");}
     else chatAdd(`<b>${esc(msg.name)}</b>：${esc(msg.text)}`,msg.name===myName?"c-me":"", "player");
   }else if(msg.type==="actAck"){
@@ -840,6 +877,7 @@ function doReset(){
     $("pauseBtn").style.display="none";
     $("endBtn").style.display="none";
     $("resetBtn").style.display="none";
+    $("transferRow").style.display="flex";
   }
   $("phaseTitle").textContent="大厅";$("timer").textContent="";
   $("actionArea").innerHTML='<div class="action-label">等待主机开始…</div>';
@@ -854,10 +892,10 @@ function hostStartConfirm(){
   phase="confirm";
   window._pending=new Set();
   if(hostParticipate)window._pending.add(meId);
-  broadcast({type:"confirmStart",seconds:3});
+  broadcast({type:"confirmStart",seconds:settings.confirmSec});
   if(!hostParticipate)sysMsg("你选择本局旁观，等待其他玩家确认…");
-  setPhaseTitle("确认参加",3,null);
-  confirmTimer=setTimeout(finishConfirm,3000);
+  setPhaseTitle("确认参加",settings.confirmSec,null);
+  confirmTimer=setTimeout(finishConfirm,settings.confirmSec*1000);
 }
 function finishConfirm(){
   if(phase!=="confirm")return;
@@ -889,23 +927,34 @@ function finishConfirm(){
   $("pauseBtn").style.display="";
   $("endBtn").style.display="";
   $("resetBtn").style.display="";
+  $("transferRow").style.display="none";
   startNight();
 }
 
 // ================= 主机：连接管理 =================
+let _hostRetry=0;
 function becomeHost(){
-  isHost=true;meId=wolfRoom;
+  isHost=true;meId=wolfRoom;_hostRetry=0;
   peer=new Peer(wolfRoom);
   peer.on("open",()=>{
     connected=true;
     $("myState").textContent="🎩 主机";
     $("hostCtrl").style.display="block";
     $("status").textContent="房间已创建，等待玩家";
+    $("transferRow").style.display="flex";
     lobbyIds.add(meId);
     renderRoster();
     renderSettings();
   });
-  peer.on("error",err=>{if(err.type==="unavailable-id"){$("status").textContent="房间ID冲突，请更换";alert("狼人杀房间创建失败：ID被占用");}});
+  peer.on("error",err=>{
+    if(err.type==="unavailable-id"){
+      if(_hostRetry<6){
+        _hostRetry++;
+        $("status").textContent="等待旧主机释放房间…（"+_hostRetry+"/6）";
+        setTimeout(()=>{try{peer.destroy();}catch(e){}becomeHost();},2000);
+      }else{$("status").textContent="成为主机失败";alert("狼人杀房间创建失败：ID一直被占用");}
+    }
+  });
   peer.on("connection",conn=>{
     connections.set(conn.peer,conn);
     conn.on("data",data=>{
@@ -1003,10 +1052,10 @@ function becomeClient(){
     connections.set(wolfRoom,c);
     c.on("open",()=>{c.send({type:"join",name:myName});});
     c.on("data",data=>localHandle(data));
-    c.on("close",()=>{$("hostBanner").style.display="block";$("status").textContent="主机掉线";});
+    c.on("close",()=>{if(!window._migrating){$("hostBanner").style.display="block";$("status").textContent="主机掉线";}});
   });
   peer.on("error",err=>{
-    if(err.type==="peer-unavailable"&&!tried){
+    if(err.type==="peer-unavailable"&&!tried&&!window._migrating){
       tried=true;
       try{peer.destroy();}catch(e){}
       connections.clear();
@@ -1088,6 +1137,30 @@ function sendChat(){
   $("chatInput").value="";
 }
 
+let _reconnIv=null;
+function reconnectLoop(){
+  $("status").textContent="主机转让中，自动重连…";
+  let tries=0;
+  clearInterval(_reconnIv);
+  _reconnIv=setInterval(()=>{
+    tries++;
+    if(tries>10){clearInterval(_reconnIv);$("hostBanner").style.display="block";$("status").textContent="重连失败，请刷新页面";return;}
+    try{
+      const c=peer.connect(wolfRoom,{serialization:"json",reliable:true});
+      c.on("open",()=>{clearInterval(_reconnIv);connections.set(wolfRoom,c);c.send({type:"join",name:myName});});
+      c.on("data",d=>localHandle(d));
+    }catch(e){}
+  },2000);
+}
+$("transferBtn").onclick=()=>{
+  if(!isHost||phase!=="lobby")return;
+  const next=$("transferSel").value;
+  if(!next)return alert("先选择要转让的成员");
+  if(!confirm("确定把主机转让给该成员？本页将失去控制权限。"))return;
+  broadcast({type:"hostClosing",next});
+  $("status").textContent="已让出主机，本页可关闭";
+  setTimeout(()=>{try{peer.destroy();}catch(e){}},500);
+};
 $("joinConfirmBtn").onclick=()=>{
   if(myConfirmed)return;
   myConfirmed=true;
@@ -1129,15 +1202,18 @@ function clampSettingsFromUI(){
   settings.extendTime=Math.max(15,Math.min(300,parseInt($("extendTimeInput").value)||30));
   const em=parseInt($("extendMaxInput").value);
   settings.extendMax=isNaN(em)?3:Math.max(0,Math.min(9,em));
+  const cs=parseInt($("confirmSecInput").value);
+  settings.confirmSec=isNaN(cs)?10:Math.max(3,Math.min(30,cs));
   settings.revealToObs=$("revealChk").checked;
 }
 function renderSettings(){
   $("speakTimeInput").value=settings.speakTime;
   $("extendTimeInput").value=settings.extendTime;
   $("extendMaxInput").value=settings.extendMax;
+  $("confirmSecInput").value=settings.confirmSec;
   $("revealChk").checked=!!settings.revealToObs;
   const dis=!isHost;
-  ["speakTimeInput","extendTimeInput","extendMaxInput","revealChk"].forEach(id=>$(id).disabled=dis);
+  ["speakTimeInput","extendTimeInput","extendMaxInput","confirmSecInput","revealChk"].forEach(id=>$(id).disabled=dis);
   $("setWho").textContent=isHost?"（你主机，可修改）":"（仅主机可修改）";
 }
 function settingsChanged(){
@@ -1146,17 +1222,17 @@ function settingsChanged(){
   broadcast({type:"settings",settings});
   syncGod(); // 打开公开开关时立即推送
 }
-["speakTimeInput","extendTimeInput","extendMaxInput","revealChk"].forEach(id=>$(id).onchange=settingsChanged);
+["speakTimeInput","extendTimeInput","extendMaxInput","confirmSecInput","revealChk"].forEach(id=>$(id).onchange=settingsChanged);
 
 // ================= 入口 =================
 function updateSetupDone(){
-  $("roomLabel").textContent=baseRoom;
+  $("roomLabel").textContent=baseRoom+"（wolf: "+wolfRoom+"）";
   $("setupRow").style.display="none";
 }
 function enter(room,name){
   baseRoom=room;myName=name;
   wolfRoom=room+"-wolf";
-  $("roomLabel").textContent=room;
+  $("roomLabel").textContent=room+"（wolf: "+wolfRoom+"）";
   becomeClient();
 }
 renderSettings();
