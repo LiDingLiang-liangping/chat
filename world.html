@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>版本选择</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif}
+body{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f4f7fa;gap:24px}
+h2{color:#333}
+.btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+button{padding:14px 32px;font-size:18px;border:none;border-radius:10px;cursor:pointer;transition:.2s}
+#btnNew{background:#2563eb;color:#fff}
+#btnOld{background:#6b7280;color:#fff}
+button:hover{opacity:0.85}
+</style>
+</head>
+<body>
+<h2>请选择版本</h2>
+<div class="btns">
+<button id="btnNew">New 新版</button>
+<button id="btnOld">Old 旧版</button>
+</div>
+
+<script>
+document.getElementById('btnNew').onclick = ()=>{
+  location.href = 'world_new.html'
+}
+document.getElementById('btnOld').onclick = ()=>{
+  location.href = 'world1.html'
+}
+</script>
+</body>
+</html>
