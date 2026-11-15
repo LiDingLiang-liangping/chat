@@ -343,6 +343,17 @@ input{font-family:inherit}
   #chatLog{height:56px}
 }
 
+/* 隐藏挂：面具入口与面板 */
+#maskBtn{position:absolute;right:14px;bottom:56px;width:34px;height:34px;font-size:16px}
+#cheatPanel{position:absolute;right:14px;bottom:100px;width:224px;padding:12px 13px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:3px;backdrop-filter:blur(6px);z-index:12}
+.cheat-sec{font-size:10.5px;letter-spacing:2px;color:var(--muted);margin:8px 0 6px}
+.cheat-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.cheat-chip{padding:6px 10px;font-size:11.5px;border:1px solid rgba(255,255,255,.12);border-radius:2px;
+  background:rgba(255,255,255,.04);color:#b9c9c1;cursor:pointer}
+.cheat-chip.active{color:var(--gold-2);border-color:rgba(217,192,138,.6);background:rgba(217,192,138,.13)}
+.cheat-chip.locked{color:#d8c0ff;border-color:rgba(200,180,255,.55);background:rgba(200,180,255,.12)}
+
 </style>
 </head>
 <body>
@@ -365,7 +376,7 @@ input{font-family:inherit}
     <div class="stats">
       <span>灵石 <b id="stones">0</b></span>
       <span>草药 <b id="herbs">0</b></span>
-      <span>戾气 <b id="grudgeNum">0</b></span>
+      <span>煞气 <b id="grudgeNum">0</b></span>
       <span>在线 <b id="online">1</b></span>
       <span id="ping">-- ms</span>
       <button class="icon-btn" id="muteBtn" title="音效开关">🔊</button>
@@ -399,7 +410,7 @@ input{font-family:inherit}
       <div class="bar-row"><span class="lb">气血</span><div class="bar hp"><i id="hpBar"></i></div><span class="num" id="hpNum">100/100</span></div>
       <div class="bar-row"><span class="lb">灵力</span><div class="bar mp"><i id="mpBar"></i></div><span class="num" id="mpNum">100/100</span></div>
       <div class="bar-row"><span class="lb">修为</span><div class="bar exp"><i id="expBar"></i></div><span class="num" id="expNum">0/100</span></div>
-      <div class="bar-row"><span class="lb">戾气</span><div class="bar gr"><i id="grudgeBar"></i></div><span class="num" id="grudgeText">0/100</span></div>
+      <div class="bar-row"><span class="lb">煞气</span><div class="bar gr"><i id="grudgeBar"></i></div><span class="num" id="grudgeText">0/100</span></div>
     </div>
     <div class="chat">
       <div id="chatLog"></div>
@@ -455,7 +466,7 @@ input{font-family:inherit}
         <button class="pick el-pick" data-el="fire">火</button>
         <button class="pick el-pick" data-el="earth">土</button>
       </div>
-      <p class="tiny" id="rootNote">五行相克则攻伐更盛，五行相生则回春更厚 · 有 5% 天成双灵根</p>
+      <p class="tiny" id="rootNote">五行相克则攻伐更盛，五行相生则回春更厚 · 有 1% 天成双灵根</p>
     </div>
 
     <div class="field">
@@ -484,7 +495,7 @@ input{font-family:inherit}
     <details class="help">
       <summary>操作与玩法</summary>
       <div class="help-body">
-        <b>移动</b>：WASD / 方向键，移动端左下摇杆<br>
+        <b>移动</b>：WASD / 方向键，移动端左下摇杆；P 循环切换操作方式<br>
         <b>战斗</b>：空格普攻；1–5 五行攻击；6–7 回血；8–9 遁术<br>
         <b>秘法</b>：0 秘境秘法，Q 宗门秘法（需先习得）<br>
         <b>修行</b>：R 打坐纳气，E 采草药；H 服药，G 服雷草引雷劫<br>
@@ -527,12 +538,25 @@ input{font-family:inherit}
   <button id="sectClose">再想想</button>
 </div>
 
+<!-- ================= 隐藏挂界面（口令解锁，无外部提示） ================= -->
+<button class="icon-btn hidden" id="maskBtn" title="">🎭</button>
+<div id="cheatPanel" class="panel hidden">
+  <div class="panel-title">秘</div>
+  <div class="cheat-sec">灵根</div>
+  <div id="cheatRoot" class="cheat-row"></div>
+  <div id="cheatActive" class="cheat-row"></div>
+  <div class="cheat-sec">锁定</div>
+  <div id="cheatLock"></div>
+  <div class="cheat-sec">预设</div>
+  <div id="cheatPreset"></div>
+</div>
+
 <!-- ================= 其他 ================= -->
 <div id="toasts"></div>
 <div id="tribOverlay" class="hidden">
   <div class="trib-box">
     <h2>天雷将至</h2>
-    <p>戾气冲霄，雷劫加身 · 撑过十道天雷可蜕变为魔鬼</p>
+    <p>煞气冲霄，雷劫加身 · 撑过十道天雷可蜕变为魔鬼</p>
     <div class="trib-count" id="tribCount">10</div>
   </div>
 </div>
@@ -562,22 +586,22 @@ input{font-family:inherit}
    ============================================================ */
 'use strict';
 
-const WORLD = { w:4800, h:4800 };
+const WORLD = { w:5200, h:5200 };
 const CX = WORLD.w/2, CY = WORLD.h/2;
 
-/* 四环：由内向外的同心环 */
+/* 四环：由内向外的同心环（新手村缩小，外环放大） */
 const RINGS = [
-  { id:1, r0:0,    r1:430,  name:'第一环 · 青云村',   tier:0, density:1.0, safe:true,  color:'#3d4a33', accent:'#8a9a63' },
-  { id:2, r0:430,  r1:960,  name:'第二环 · 基层灵野', tier:0, density:1.5, safe:false, color:'#1e4034', accent:'#5fc9a6' },
-  { id:3, r0:960,  r1:1470, name:'第三环 · 中层幽域', tier:1, density:2.2, safe:false, color:'#232b45', accent:'#8a79c9' },
-  { id:4, r0:1470, r1:1960, name:'第四环 · 高层绝域', tier:2, density:3.2, safe:false, color:'#294553', accent:'#9fd3e8' },
+  { id:1, r0:0,    r1:300,  name:'第一环 · 青云村',   tier:0, density:1.0, safe:true,  color:'#3d4a33', accent:'#8a9a63' },
+  { id:2, r0:300,  r1:850,  name:'第二环 · 基层灵野', tier:0, density:1.5, safe:false, color:'#1e4034', accent:'#5fc9a6' },
+  { id:3, r0:850,  r1:1480, name:'第三环 · 中层幽域', tier:1, density:2.2, safe:false, color:'#232b45', accent:'#8a79c9' },
+  { id:4, r0:1480, r1:2150, name:'第四环 · 高层绝域', tier:2, density:3.2, safe:false, color:'#294553', accent:'#9fd3e8' },
 ];
 const TIER_NAMES = ['低阶','中阶','高阶'];
 function tierOf(realm){ return realm <= 8 ? 0 : (realm <= 14 ? 1 : 2); }
 function maxRadiusFor(realm){ const t = tierOf(realm); return t>=2 ? RINGS[3].r1 : (t>=1 ? RINGS[2].r1 : RINGS[1].r1); }
 
-const TOWN = { x:CX-90, y:CY-100, r:180 };
-const FAIR = { x:CX+225, y:CY-120, r:125 };
+const TOWN = { x:CX-72, y:CY-80, r:150 };
+const FAIR = { x:CX+180, y:CY-96, r:105 };
 
 /* 境界 */
 const REALM_NAMES = [
@@ -754,15 +778,15 @@ const RING_SPAWNS = [
   { ring:4, type:'cinderowl',    count:10,  spread:0.88 },
 ];
 const RING_BOSSES = [
-  { ring:2, type:'dragon',   ang:-0.4,  dist:720 },
-  { ring:3, type:'flamewyrm',ang:0.9,   dist:1230 },
-  { ring:3, type:'spiderqueen', ang:2.6, dist:1230 },
-  { ring:3, type:'goldcorp', ang:4.4,   dist:1230 },
+  { ring:2, type:'dragon',   ang:-0.4,  dist:600 },
+  { ring:3, type:'flamewyrm',ang:0.9,   dist:1180 },
+  { ring:3, type:'spiderqueen', ang:2.6, dist:1180 },
+  { ring:3, type:'goldcorp', ang:4.4,   dist:1180 },
 ];
 
 /* ---------------- 宗门 ---------------- */
 const SECTS = [
-  { id:'tianjian', name:'天剑宗', el:'metal', ring:2, radius:720, ang:-1.1, tier:0, color:'#9fc7d8',
+  { id:'tianjian', name:'天剑宗', el:'metal', ring:2, radius:600, ang:-1.1, tier:0, color:'#9fc7d8',
     desc:'剑修之地 · 攻伐第一 · 攻击永久 +8%',
     atkBonus:0.08, hpBonus:0,
     peaks:[
@@ -770,7 +794,7 @@ const SECTS = [
       { name:'洗锋峰', elder:'素心长老', dens:1.7, main:false },
       { name:'藏锋峰', elder:'守拙长老', dens:2.0, main:true  },
     ] },
-  { id:'lingxi', name:'灵溪宗', el:'wood', ring:3, radius:1200, ang:1.9, tier:1, color:'#79e0bd',
+  { id:'lingxi', name:'灵溪宗', el:'wood', ring:3, radius:1160, ang:1.9, tier:1, color:'#79e0bd',
     desc:'灵植药道 · 生生不息 · 气血上限 +10%',
     atkBonus:0, hpBonus:0.10,
     peaks:[
@@ -778,7 +802,7 @@ const SECTS = [
       { name:'流泉峰', elder:'听泉长老', dens:1.8, main:false },
       { name:'药王峰', elder:'百草长老', dens:2.2, main:true  },
     ] },
-  { id:'youming', name:'幽冥谷', el:'water', ring:4, radius:1650, ang:3.6, tier:2, color:'#9a7fc0',
+  { id:'youming', name:'幽冥谷', el:'water', ring:4, radius:1820, ang:3.6, tier:2, color:'#9a7fc0',
     desc:'幽冥诡道 · 灵力深厚 · 灵力上限 +15%',
     atkBonus:0, hpBonus:0,
     mpBonus:0.15,
@@ -805,6 +829,13 @@ const CONTROL_INFO = {
   classic:{ name:'经典御剑', desc:'鼠标仅定攻击方向，WASD 绝对方向移动' },
   facing: { name:'意随心动', desc:'鼠标指哪人朝哪，W 向鼠标方向走' },
   lockon: { name:'灵觉锁敌', desc:'攻击自动锁定最近妖兽，WASD 绝对移动', femaleOnly:true },
+};
+
+/* 隐藏预设（内置挂三档，互斥，切换即替换） */
+const CHEAT_PRESETS = {
+  p1:{ name:'预设一', hp:0.50, mp:0.50, atk:0.30, def:0.20, expRate:2 },
+  p2:{ name:'预设二', hp:1.00, mp:1.00, atk:0.60, def:0.50, expRate:3 },
+  p3:{ name:'预设三', hp:2.00, mp:2.00, atk:1.20, def:1.00, expRate:5 },
 };
 
 const SPEED = 208;
@@ -884,6 +915,7 @@ const G = {
 
   particles:[], floaters:[], rings:[], motes:[],
   shake:0, muted:false, shopOpen:false, sectOpen:false,
+  cheatOn:false, cheatOpen:false,
   ping:0, portals:[],
   hint:'', lastHint:'',
   quests:{ meditated:false, revealedSecret:false },
@@ -1045,12 +1077,12 @@ function generateWorld(){
 
   /* 村中建筑 */
   const houses = [
-    { x:TOWN.x-118, y:TOWN.y-72, w:140, h:86, name:'客栈', color:'#6b5438' },
-    { x:TOWN.x+34, y:TOWN.y-82, w:128, h:82, name:'丹房', color:'#5c4a35' },
-    { x:TOWN.x-84, y:TOWN.y+62, w:150, h:88, name:'问道堂', color:'#65503a' },
-    { x:TOWN.x+100, y:TOWN.y+56, w:134, h:82, name:'器阁', color:'#5a4633' },
-    { x:FAIR.x-40, y:FAIR.y-22, w:168, h:96, name:'坊市', color:'#6a5638' },
-    { x:FAIR.x+104, y:FAIR.y+50, w:110, h:70, name:'丹铺', color:'#5f4c34' },
+    { x:TOWN.x-96, y:TOWN.y-58, w:116, h:70, name:'客栈', color:'#6b5438' },
+    { x:TOWN.x+28, y:TOWN.y-66, w:108, h:66, name:'丹房', color:'#5c4a35' },
+    { x:TOWN.x-68, y:TOWN.y+50, w:124, h:72, name:'问道堂', color:'#65503a' },
+    { x:TOWN.x+82, y:TOWN.y+44, w:110, h:66, name:'器阁', color:'#5a4633' },
+    { x:FAIR.x-32, y:FAIR.y-18, w:140, h:80, name:'坊市', color:'#6a5638' },
+    { x:FAIR.x+86, y:FAIR.y+40, w:92, h:58, name:'丹铺', color:'#5f4c34' },
   ];
   for(const h of houses){
     worldGeo.houses.push(h);
@@ -1058,8 +1090,8 @@ function generateWorld(){
   }
 
   /* 水潭 */
-  worldGeo.ponds.push({ x:CX-760, y:CY-600, rx:150, ry:88, color:'#2c7f86' });
-  worldGeo.ponds.push({ x:CX+900, y:CY+1080, rx:180, ry:100, color:'#3b3a72' });
+  worldGeo.ponds.push({ x:CX-620, y:CY-480, rx:130, ry:78, color:'#2c7f86' });
+  worldGeo.ponds.push({ x:CX+780, y:CY+900, rx:150, ry:88, color:'#3b3a72' });
 
   /* 径向道路：由村通向四环 */
   for(let i=0;i<4;i++){
@@ -1093,7 +1125,7 @@ function generateWorld(){
     let placed = 0, tries = 0;
     while(placed < rp.n && tries < rp.n*14){
       tries++;
-      const a = rand()*Math.PI*2, rr = (rp.ring===3?720:1080) + rand()*(rp.ring===3?320:330);
+      const a = rand()*Math.PI*2, rr = (rp.ring===3?900:1560) + rand()*(rp.ring===3?350:380);
       const x = CX + Math.cos(a)*rr, y = CY + Math.sin(a)*rr;
       if(worldGeo.obstacles.some(o=>dist(x,y,o.x,o.y) < 44)) continue;
       if(sectSiteAt(x,y)) continue;
@@ -2333,6 +2365,7 @@ function serPlayer(p){
     stones:p.stones, herbInv:{...p.herbInv}, pillsHeal:p.pillsHeal, pillsExp:p.pillsExp,
     kills:p.kills, gathered:p.gathered, deaths:p.deaths,
     grudge:Math.round(p.grudge||0), devil:!!p.devil, rage:!!p.rage,
+    preset:p.preset||null,
     trib:p.trib ? { hit:p.trib.hit, total:p.trib.total } : null,
     sect:p.sect, sectPeak:p.sectPeak, secret:p.secret,
     meditating:p.meditating, dead:p.dead,
@@ -2411,6 +2444,8 @@ function handleHostData(conn, d){
     case 'chat': hostChat(id, d.text); break;
     case 'swap': hostSwapRoot(id); break;
     case 'rage': hostRage(id); break;
+    case 'cheat': hostCheat(id, d.action, d.payload||{}); break;
+    case 'control': hostControl(id, d.control); break;
     case 'trial': hostTrial(id); break;
     case 'joinsect': hostJoinSect(id, d.sectId, Number(d.peak)|0); break;
     case 'leavesect': hostLeaveSect(id); break;
@@ -2616,7 +2651,7 @@ function showDisconnect(text){
 <script>
 /* ==== sim.js ==== */
 /* ============================================================
-   js/sim.js — 房主权威模拟：玩家、妖兽、战斗、五行、戾气雷劫、
+   js/sim.js — 房主权威模拟：玩家、妖兽、战斗、五行、煞气雷劫、
               秘境、宗门、草药、掉落与事件表现
    ============================================================ */
 'use strict';
@@ -2645,6 +2680,8 @@ function makePlayer(id,name,x,y,opt){
     pillsHeal:1, pillsExp:0,
     kills:0, gathered:0, deaths:0,
     grudge:0, devil:false, rage:false, trib:null,
+    devilUntil:0, devilCause:null,
+    deathCause:null, preset:null, lock:{}, expRate:1,
     sect:null, sectPeak:-1, trialCd:0,
     secret:{},
     meditating:false, dead:false, respawnAt:0,
@@ -2658,17 +2695,20 @@ function makePlayer(id,name,x,y,opt){
 
 function recalcPlayer(p){
   const info = realmInfo(p.realm);
-  let hpB=0, mpB=0, atkB=0;
+  let hpB=0, mpB=0, atkB=0, defB=0;
   if(p.sect && SECT_BY_ID[p.sect]){
     hpB = SECT_BY_ID[p.sect].hpBonus||0;
     mpB = SECT_BY_ID[p.sect].mpBonus||0;
     atkB = SECT_BY_ID[p.sect].atkBonus||0;
   }
+  const cp = CHEAT_PRESETS[p.preset];
+  if(cp){ hpB+=cp.hp; mpB+=cp.mp; atkB+=cp.atk; defB+=cp.def; p.expRate=cp.expRate; }
+  else p.expRate = 1;
   p.realmName = info.name;
   p.maxHp = Math.round(info.maxHp*(1+hpB));
   p.maxMp = Math.round(info.maxMp*(1+mpB));
   p.atk = Math.round(info.atk*(1+atkB));
-  p.def = info.def;
+  p.def = Math.round(info.def*(1+defB));
   p.expMax = info.need;
   p.hp = Math.min(p.hp, p.maxHp);
   p.mp = Math.min(p.mp, p.maxMp);
@@ -2774,8 +2814,8 @@ function addPlayer(id, name, opt, isHostPlayer){
   const y = TOWN.y + 60 + (Math.random()-0.5)*70;
   const r = resolveCollision(x,y,14);
   const p = makePlayer(id, name, r.x, r.y, opt);
-  // 5% 天成双灵根
-  if(p.root.length === 1 && Math.random() < 0.05){
+  // 1% 天成双灵根
+  if(p.root.length === 1 && Math.random() < 0.01){
     const pool = EL_LIST.filter(e=>e!==p.root[0]);
     p.root.push(pool[Math.floor(Math.random()*pool.length)]);
   }
@@ -2804,31 +2844,65 @@ function hostTick(){
   for(const p of world.players.values()){
     if(p.dead){
       if(tnow >= p.respawnAt){
+        // 死亡降级：雷劫降 5 级，正常陨落降 2 级
+        const drop = p.deathCause==='trib' ? 5 : 2;
+        if(drop > 0 && p.realm > 0){
+          const before = p.realm;
+          p.realm = Math.max(0, p.realm - drop);
+          if(p.realm !== before){
+            recalcPlayer(p);
+            p.exp = 0;
+            emit({e:'sys', text:`魂魄归位，境界跌落 ${before-p.realm} 级`, id:p.id});
+          }
+        }
         const r = resolveCollision(TOWN.x + (Math.random()-0.5)*100, TOWN.y+60, 14);
         p.x=r.x; p.y=r.y; p.hp=p.maxHp; p.mp=p.maxMp; p.dead=false; p.meditating=false;
-        p.cd={}; p.area='world'; p.secretEl=null; p.shield=0; p.devil=p.devil;
+        p.cd={}; p.area='world'; p.secretEl=null; p.shield=0; p.devil=p.devil; p.deathCause=null;
         emit({e:'respawn', x:p.x, y:p.y, name:p.name, id:p.id});
       }
       continue;
     }
 
-    /* 雷劫 */
+    /* 雷劫：开始时按来源掷骰 —— 自然煞气 99% 死 / 1% 成魔；雷草 70% 死 / 30% 成魔 */
     if(p.trib){
       if(tnow >= p.trib.next){
         p.trib.next = tnow + 640;
         p.trib.hit++;
-        const dmg = Math.round(p.maxHp*0.16)+25;
+        const dmg = p.trib.fatal
+          ? Math.round(p.maxHp*0.16)+25
+          : Math.round(p.maxHp*0.08)+12;
         p.hp -= dmg;
         emit({e:'tribhit', x:p.x, y:p.y-10, dmg, id:p.id, left:Math.max(0,p.trib.total-p.trib.hit)});
         if(p.hp <= 0){
           p.hp = 0; p.trib = null;
-          killPlayerSelf(p, '天雷焚身');
+          killPlayerSelf(p, '天雷焚身', 'trib');
           continue;
         }
       }
       if(p.trib && tnow >= p.trib.end){
+        const fatal = !!p.trib.fatal;
+        const cause = p.trib.cause;
         p.trib = null;
-        makeDevil(p);
+        if(fatal){
+          p.hp = 0;
+          killPlayerSelf(p, '天雷焚身', 'trib');
+          continue;
+        }
+        makeDevil(p, cause);
+      }
+    }
+
+    /* 成魔时限：自然煞气成魔 60 秒后陨落；雷草成魔 120 秒后退回凡人 */
+    if(p.devil && p.devilUntil && tnow >= p.devilUntil){
+      if(p.devilCause === 'herb'){
+        p.devil = false; p.rage = false; p.grudge = 0; p.shield = 0;
+        p.devilUntil = 0;
+        emit({e:'devilEnd', x:p.x, y:p.y, name:p.name, id:p.id});
+      }else{
+        p.devil = false; p.rage = false; p.devilUntil = 0;
+        p.hp = 0;
+        killPlayerSelf(p, '魔道焚身', 'normal');
+        continue;
       }
     }
 
@@ -2865,7 +2939,7 @@ function hostTick(){
     for(const k in p.cd) p.cd[k] = Math.max(0, p.cd[k]-dt);
     if(p.shieldUntil && tnow > p.shieldUntil){ p.shield = 0; p.shieldUntil = 0; }
 
-    // 戾气缓慢消散
+    // 煞气缓慢消散
     if(p.grudge > 0) p.grudge = Math.max(0, p.grudge - 0.55*dt);
 
     if(p.area==='secret'){
@@ -2876,7 +2950,7 @@ function hostTick(){
           it.alive = false; it.respawnAt = tnow + 45000;
           if(it.kind==='hp'){ const v=Math.round(p.maxHp*0.4); p.hp=Math.min(p.maxHp,p.hp+v); emit({e:'item',x:it.x,y:it.y,text:'+'+v+' 气血',color:'#e06b5a',id:p.id}); }
           else if(it.kind==='mp'){ const v=Math.round(p.maxMp*0.6); p.mp=Math.min(p.maxMp,p.mp+v); emit({e:'item',x:it.x,y:it.y,text:'+'+v+' 灵力',color:'#69c7e8',id:p.id}); }
-          else if(it.kind==='exp'){ const v=320; p.exp=Math.min(p.expMax,p.exp+v); emit({e:'item',x:it.x,y:it.y,text:'+'+v+' 修为',color:'#e8cf8a',id:p.id}); }
+          else if(it.kind==='exp'){ const v=Math.round(320*(p.expRate||1)); p.exp=Math.min(p.expMax,p.exp+v); emit({e:'item',x:it.x,y:it.y,text:'+'+v+' 修为',color:'#e8cf8a',id:p.id}); }
           else { p.stones += 60; emit({e:'item',x:it.x,y:it.y,text:'+60 灵石',color:'#b9c7c0',id:p.id}); }
         }
       }
@@ -2906,14 +2980,14 @@ function hostTick(){
 
     // 灵气 / 修行
     if(p.area==='secret'){
-      if(p.meditating){ p.exp = Math.min(p.expMax, p.exp + 2.4*dt); }
+      if(p.meditating){ p.exp = Math.min(p.expMax, p.exp + 2.4*(p.expRate||1)*dt); }
       p.hp = Math.min(p.maxHp, p.hp + 0.9*dt);
       p.mp = Math.min(p.maxMp, p.mp + 2.2*dt);
     }else{
       const z = zoneInfoAt(p.x,p.y);
       const dens = densityAt(p.x,p.y) || z.density;
       if(p.meditating){
-        p.exp = Math.min(p.expMax, p.exp + 2.6*dens*dt);
+        p.exp = Math.min(p.expMax, p.exp + 2.6*dens*(p.expRate||1)*dt);
         p.hp = Math.min(p.maxHp, p.hp + 3.2*dt);
         p.mp = Math.min(p.maxMp, p.mp + 3.8*dt);
       }else{
@@ -2926,6 +3000,15 @@ function hostTick(){
       emit({e:'full', x:p.x, y:p.y, id:p.id, name:p.name});
     }
     if(p.exp < p.expMax) p.fullNotified = false;
+
+    // 内置挂：锁定项冻结在锁定瞬间的值
+    if(p.lock){
+      const lv = p.lockVal || {};
+      if(p.lock.hp) p.hp = clamp(lv.hp||p.maxHp, 0, p.maxHp);
+      if(p.lock.mp) p.mp = clamp(lv.mp||p.maxMp, 0, p.maxMp);
+      if(p.lock.exp) p.exp = clamp(lv.exp||0, 0, p.expMax);
+      if(p.lock.grudge) p.grudge = clamp(lv.grudge||0, 0, 130);
+    }
   }
 
   /* ---- 妖兽 ---- */
@@ -3072,6 +3155,7 @@ function mobHitPlayer(m, cfg, target){
     emit({e:'shield', x:target.x, y:target.y, val:absorb});
   }
   if(dmg <= 0) return;
+  if(target.lock && target.lock.hp) return;
   target.hp -= dmg;
   target.lastCombat = Date.now();
   target.meditating = false;
@@ -3082,8 +3166,9 @@ function mobHitPlayer(m, cfg, target){
   }
 }
 
-function killPlayerSelf(p, byName){
+function killPlayerSelf(p, byName, cause){
   p.dead = true;
+  p.deathCause = cause || 'normal';
   p.respawnAt = Date.now() + 5000;
   p.exp = Math.floor(p.exp*0.9);
   p.deaths++;
@@ -3112,7 +3197,7 @@ function killMob(m, ownerId){
   const p = world.players.get(ownerId);
   if(p){
     p.kills++;
-    p.exp = Math.min(p.expMax, p.exp + cfg.exp);
+    p.exp = Math.min(p.expMax, p.exp + Math.round(cfg.exp*(p.expRate||1)));
     const stones = randInt(cfg.stones[0], cfg.stones[1]);
     p.stones += stones;
     if(Math.random() < (cfg.boss ? 1 : 0.24)){
@@ -3150,13 +3235,16 @@ function damagePlayer(target, raw, attackerId, el){
     emit({e:'shield', x:target.x, y:target.y, val:absorb});
   }
   if(real <= 0) return;
+  if(target.lock && target.lock.hp) return;
   target.hp -= real;
   target.lastCombat = Date.now();
   target.meditating = false;
   emit({e:'pvpHit', x:target.x, y:target.y-16, dmg:real, id:target.id, atk:attackerId, vuln:em>1.1, resist:em<0.9});
   if(attacker && attacker.id !== target.id){
-    attacker.grudge = Math.min(130, attacker.grudge + 9);
-    if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
+    if(!(attacker.lock && attacker.lock.grudge)){
+      attacker.grudge = Math.min(130, attacker.grudge + 9);
+      if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
+    }
   }
   if(target.hp <= 0){
     target.hp = 0;
@@ -3178,6 +3266,7 @@ function handlePlayerKill(target, attacker){
     if(attacker.hp <= 0){
       attacker.hp = 0;
       attacker.dead = true;
+      attacker.deathCause = 'normal';
       attacker.respawnAt = Date.now() + 5000;
       attacker.exp = Math.floor(attacker.exp*0.8);
       attacker.deaths++;
@@ -3193,13 +3282,14 @@ function handlePlayerKill(target, attacker){
     if(as && dist(attacker.x,attacker.y,as.x,as.y) < 175){
       attacker.exp = Math.floor(attacker.exp*0.72);
       attacker.stones = Math.max(0, attacker.stones - Math.round(attacker.stones*0.5));
-      attacker.grudge = Math.min(130, attacker.grudge + 40);
+      if(!(attacker.lock && attacker.lock.grudge)) attacker.grudge = Math.min(130, attacker.grudge + 40);
       emit({e:'sys', text:`宗门执法堂：门内行凶，罚没半数灵石、两成八修为`, id:attacker.id});
       if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
     }
   }
 
   target.dead = true;
+  target.deathCause = 'normal';
   target.respawnAt = Date.now() + 5000;
   target.exp = Math.floor(target.exp*0.9);
   target.deaths++;
@@ -3208,23 +3298,31 @@ function handlePlayerKill(target, attacker){
   target.area = 'world';
   target.secretEl = null;
   if(attacker && attacker.id !== target.id){
-    attacker.grudge = Math.min(130, attacker.grudge + 12);
-    if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
+    if(!(attacker.lock && attacker.lock.grudge)){
+      attacker.grudge = Math.min(130, attacker.grudge + 12);
+      if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
+    }
   }
   emit({e:'death', x:target.x, y:target.y, id:target.id, name:target.name, by:attacker?attacker.name:''});
 }
 
 /* ---------------- 雷劫 / 魔鬼 ---------------- */
-function startTribulation(p){
+function startTribulation(p, cause){
   if(p.trib || p.devil) return;
-  p.trib = { end: Date.now()+7200, next: Date.now()+340, hit:0, total:10 };
+  cause = cause || 'grudge';
+  // 自然煞气雷劫 99% 致死；雷草主动引动 70% 致死
+  const fatal = cause==='herb' ? Math.random() < 0.70 : Math.random() < 0.99;
+  p.trib = { end: Date.now()+7200, next: Date.now()+340, hit:0, total:10, cause, fatal };
   emit({e:'trib', x:p.x, y:p.y, name:p.name, id:p.id});
 }
-function makeDevil(p){
+function makeDevil(p, cause){
   p.devil = true;
   p.rage = true;
   p.grudge = 0;
   p.shield = 0;
+  p.devilCause = cause || 'grudge';
+  // 自然煞气成魔 1 分钟；雷草成魔 2 分钟
+  p.devilUntil = Date.now() + (p.devilCause==='herb' ? 120000 : 60000);
   emit({e:'devil', x:p.x, y:p.y, name:p.name, id:p.id});
 }
 
@@ -3391,7 +3489,7 @@ function hostGather(id){
   herbChanges.push({ id:best.id, alive:false });
   p.herbInv[best.el] = (p.herbInv[best.el]||0)+1;
   p.gathered++;
-  p.exp = Math.min(p.expMax, p.exp + 12);
+  p.exp = Math.min(p.expMax, p.exp + Math.round(12*(p.expRate||1)));
   emit({e:'gather', x:best.x, y:best.y, name:p.name, id:p.id, el:best.el});
 }
 
@@ -3420,7 +3518,7 @@ function hostThunderHerb(id){
   if(p.devil){ emit({e:'sys', text:'已是魔鬼之身，雷劫不再加身', id}); return; }
   p.herbInv.thunder--;
   emit({e:'sys', text:'服下雷草，引动天雷…', id});
-  startTribulation(p);
+  startTribulation(p, 'herb');
 }
 
 function hostUse(id, item){
@@ -3497,6 +3595,49 @@ function hostRage(id){
   if(!p || !p.devil){ emit({e:'sys', text:'未入魔道，无法狂暴', id}); return; }
   p.rage = !p.rage;
   emit({e:'rage', on:p.rage, id:p.id});
+}
+
+/* ---------------- 隐藏内置挂（仅作用于调用者自己） ---------------- */
+function hostCheat(id, action, payload){
+  const p = world.players.get(id);
+  if(!p || p.dead) return;
+  payload = payload || {};
+  if(action === 'root'){
+    const roots = (payload.roots||[]).filter(e=>EL_LIST.includes(e)).slice(0,2);
+    if(!roots.length) return;
+    p.root = roots;
+    p.activeRoot = Math.min(payload.active===1?1:0, roots.length-1);
+    emit({e:'root', el:activeEl(p), id:p.id});
+  }else if(action === 'activeRoot'){
+    if(p.root.length < 2) return;
+    p.activeRoot = payload.index===1 ? 1 : 0;
+    emit({e:'root', el:activeEl(p), id:p.id});
+  }else if(action === 'lock'){
+    const k = payload.key;
+    if(['hp','mp','exp','grudge'].indexOf(k) < 0) return;
+    p.lock = p.lock || {}; p.lockVal = p.lockVal || {};
+    if(payload.on){
+      p.lock[k] = true;
+      p.lockVal[k] = k==='hp' ? p.hp : k==='mp' ? p.mp : k==='exp' ? p.exp : p.grudge;
+    }else{
+      p.lock[k] = false;
+    }
+  }else if(action === 'preset'){
+    const key = payload.preset;
+    p.preset = (key && CHEAT_PRESETS[key]) ? key : null;
+    recalcPlayer(p);
+    p.hp = Math.min(p.hp, p.maxHp);
+    p.mp = Math.min(p.mp, p.maxMp);
+    if(p.preset) emit({e:'sys', text:CHEAT_PRESETS[p.preset].name+' 已启', id:p.id});
+  }
+}
+
+function hostControl(id, control){
+  const p = world.players.get(id);
+  if(!p) return;
+  if(!CONTROL_INFO[control]) return;
+  if(control==='lockon' && p.gender!=='female') return; // 锁敌仍为女修专属
+  p.control = control;
 }
 
 /* ---------------- 宗门 ---------------- */
@@ -3664,7 +3805,7 @@ function applyEvent(ev){
       if(!ev.id || ev.id===G.selfId) addSys(ev.text, 'gold');
       break;
     case 'trib':
-      if(ev.id===G.selfId){ toast('戾气冲霄，雷劫降临！撑过十道天雷','thunder'); sfx('thunder'); }
+      if(ev.id===G.selfId){ toast('煞气冲霄，雷劫降临！撑过十道天雷','thunder'); sfx('thunder'); }
       break;
     case 'tribhit':
       spawnParticles(ev.x, ev.y, 16, '#c9b8ff', 150, 3.4, 0.5);
@@ -3679,6 +3820,10 @@ function applyEvent(ev){
       toast(`${ev.name} 渡过雷劫，坠入魔道，化为魔鬼`,'thunder');
       sfx('devil');
       if(ev.id===G.selfId) G.shake = 14;
+      break;
+    case 'devilEnd':
+      floatText(ev.x, ev.y-46, '魔道消散 · '+ev.name, '#c6d2cc', 15);
+      if(ev.id===G.selfId) toast('时限已到，重归凡人','jade');
       break;
     case 'elder':
       floatText(ev.x, ev.y-40, ev.elder+' 出手 · '+ev.dmg, '#9fc7d8', 15);
@@ -3955,8 +4100,33 @@ function buy(item){
 }
 function sendChat(text){
   if(!text) return;
+  // 隐藏口令：静默解锁内置挂，不入聊天记录、不广播
+  if(String(text).trim() === '魏文帝牛逼'){
+    G.cheatOn = true;
+    showCheatMask();
+    return;
+  }
   if(G.isHost) hostChat(G.selfId, text);
   else send({ type:'chat', text });
+}
+
+/* ---------------- 隐藏内置挂 ---------------- */
+function cheat(action, payload){
+  if(G.mode!=='playing' || !G.netReady) return;
+  if(G.isHost) hostCheat(G.selfId, action, payload||{});
+  else send({ type:'cheat', action, payload:payload||{} });
+}
+
+function cycleControl(){
+  if(G.mode!=='playing') return;
+  const order = ['classic','facing','lockon'];
+  let next = order[(order.indexOf(G.control)+1) % order.length];
+  if(next==='lockon' && G.gender!=='female') next = 'classic';
+  G.control = next;
+  const me = getSelf();
+  if(G.isHost){ if(me) me.control = next; }
+  else send({ type:'control', control:next });
+  toast(CONTROL_INFO[next].name, 'jade');
 }
 
 </script>
@@ -4351,6 +4521,90 @@ function startPlaying(isHost){
   addSys('按 R 打坐纳气，按 E 采药，按 B 破境','');
 }
 
+/* ---------------- 隐藏内置挂面板 ---------------- */
+const CHEAT_LOCKS = [
+  { key:'hp', name:'气血' },
+  { key:'mp', name:'灵力' },
+  { key:'exp', name:'修为' },
+  { key:'grudge', name:'煞气' },
+];
+G.cheatLocal = { lock:{}, preset:null };
+
+function showCheatMask(){ $('maskBtn').classList.remove('hidden'); }
+
+function toggleCheatPanel(){
+  if(!G.cheatOn) return;
+  G.cheatOpen = !G.cheatOpen;
+  $('cheatPanel').classList.toggle('hidden', !G.cheatOpen);
+  if(G.cheatOpen) buildCheatPanel();
+}
+
+function buildCheatPanel(){
+  const me = getSelf();
+  if(!me) return;
+
+  const rootBox = $('cheatRoot'); rootBox.innerHTML = '';
+  EL_LIST.forEach(el=>{
+    const inRoot = me.root.includes(el);
+    const b = document.createElement('button');
+    b.className = 'cheat-chip' + (inRoot?' active':'');
+    b.textContent = elName(el);
+    b.onclick = ()=>{
+      let roots = me.root.slice();
+      if(roots.includes(el)){ if(roots.length>1) roots = roots.filter(x=>x!==el); }
+      else { roots.push(el); if(roots.length>2) roots.shift(); }
+      cheat('root', { roots, active: me.activeRoot||0 });
+      buildCheatPanel();
+    };
+    rootBox.appendChild(b);
+  });
+
+  const actBox = $('cheatActive'); actBox.innerHTML = '';
+  if(me.root.length>1){
+    me.root.forEach((el,i)=>{
+      const b = document.createElement('button');
+      b.className = 'cheat-chip' + ((me.activeRoot||0)===i?' active':'');
+      b.textContent = '当前 · '+elName(el);
+      b.onclick = ()=>{ cheat('activeRoot', { index:i }); buildCheatPanel(); };
+      actBox.appendChild(b);
+    });
+  }else{
+    actBox.textContent = '单一灵根，无需切换';
+  }
+
+  const lockBox = $('cheatLock'); lockBox.innerHTML = '';
+  CHEAT_LOCKS.forEach(lk=>{
+    const on = !!(me.lock && me.lock[lk.key]) || !!G.cheatLocal.lock[lk.key];
+    const b = document.createElement('button');
+    b.className = 'cheat-chip' + (on?' locked':'');
+    b.textContent = lk.name + (on?' · 已锁':' · 解锁');
+    b.onclick = ()=>{
+      G.cheatLocal.lock[lk.key] = !on;
+      cheat('lock', { key:lk.key, on:!on });
+      buildCheatPanel();
+    };
+    lockBox.appendChild(b);
+  });
+
+  const preBox = $('cheatPreset'); preBox.innerHTML = '';
+  Object.keys(CHEAT_PRESETS).forEach(k=>{
+    const cp = CHEAT_PRESETS[k];
+    const active = me.preset===k || G.cheatLocal.preset===k;
+    const b = document.createElement('button');
+    b.className = 'cheat-chip' + (active?' active':'');
+    b.textContent = cp.name;
+    b.onclick = ()=>{
+      const next = active ? null : k;
+      G.cheatLocal.preset = next;
+      cheat('preset', { preset:next });
+      buildCheatPanel();
+    };
+    preBox.appendChild(b);
+  });
+}
+
+$('maskBtn').onclick = toggleCheatPanel;
+
 </script>
 <script>
 /* ==== input.js ==== */
@@ -4396,6 +4650,7 @@ document.addEventListener('keydown', e=>{
   else if(e.code==='KeyV'){ if(!e.repeat) toggleRage(); }
   else if(e.code==='KeyF'){ if(!e.repeat) toggleShop(); }
   else if(e.code==='KeyM'){ if(!e.repeat) toggleMute(); }
+  else if(e.code==='KeyP'){ if(!e.repeat) cycleControl(); }
   else if(e.code==='KeyR'){ input.med = true; }
   else if(e.code==='Enter'){ e.preventDefault(); $('chatInput').focus(); }
   else if(e.code==='Escape'){ closeShop(); closeSectPanel(); $('chatInput').blur(); }
