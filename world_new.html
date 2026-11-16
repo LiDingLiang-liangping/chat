@@ -1291,16 +1291,32 @@ function arenaClamp(x,y,r){
 'use strict';
 
 const canvas = $('game');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
 let W = 0, H = 0, DPR = 1;
 
+/* ---------- 动态分辨率（自适应画质） ---------- */
+function perfState(){
+  if(!window.__PERF) window.__PERF = { acc:0, frames:0, q:1 };
+  return window.__PERF;
+}
 function resize(){
   W = window.innerWidth; H = window.innerHeight;
-  DPR = Math.min(window.devicePixelRatio||1, 2);
+  const base = Math.min(window.devicePixelRatio||1, 2);
+  DPR = Math.max(0.75, Math.min(base, 1.5) * perfState().q);
   canvas.width = Math.floor(W*DPR);
   canvas.height = Math.floor(H*DPR);
   canvas.style.width = W+'px';
   canvas.style.height = H+'px';
+}
+/* 每约 2 秒评估帧耗时：慢了自动降分辨率，流畅了再升回去 */
+function perfWatch(ms){
+  const P = perfState();
+  P.acc += ms; P.frames++;
+  if(P.frames < 40 || P.acc < 2000) return;
+  const avg = P.acc/P.frames;
+  P.acc = 0; P.frames = 0;
+  if(avg > 20.5 && P.q > 0.6){ P.q = Math.max(0.6, P.q-0.12); resize(); }
+  else if(avg < 13.2 && P.q < 1){ P.q = Math.min(1, P.q+0.08); resize(); }
 }
 window.addEventListener('resize', resize);
 resize();
@@ -1363,6 +1379,24 @@ function drawWorldGroundStatic(c){
     c.strokeStyle = 'rgba(180,164,116,.07)';
     c.lineWidth = 42;
     c.beginPath(); c.moveTo(p.x1,p.y1); c.lineTo(p.x2,p.y2); c.stroke();
+  }
+
+  // 静态雾层（原逐帧 screen 混合雾，烘一次即可）
+  {
+    let seedf = 20261116;
+    const rndf = ()=>{ seedf = (seedf*1103515245+12345) & 0x7fffffff; return seedf/0x7fffffff; };
+    c.save();
+    c.globalCompositeOperation = 'screen';
+    for(let i=0;i<44;i++){
+      const fx = rndf()*WORLD.w, fy = rndf()*WORLD.h;
+      const rr2 = 420 + rndf()*560;
+      const fg2 = c.createRadialGradient(fx,fy,12,fx,fy,rr2);
+      fg2.addColorStop(0,'rgba(150,200,190,.045)');
+      fg2.addColorStop(1,'rgba(150,200,190,0)');
+      c.fillStyle = fg2;
+      c.beginPath(); c.arc(fx,fy,rr2,0,Math.PI*2); c.fill();
+    }
+    c.restore();
   }
 
   // 水潭底
@@ -2096,22 +2130,7 @@ function drawMotes(){
   ctx.globalAlpha = 1;
 }
 
-function drawFog(){
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  for(let i=0;i<6;i++){
-    const t = G.time*0.03 + i*1.7;
-    const x = G.cam.x + Math.sin(t)*W*0.6;
-    const y = G.cam.y + Math.cos(t*0.8)*H*0.4;
-    const r = 260 + i*40;
-    const g = ctx.createRadialGradient(x,y,10,x,y,r);
-    g.addColorStop(0,'rgba(150,200,190,.035)');
-    g.addColorStop(1,'rgba(150,200,190,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
-}
+function drawFog(){ /* 静态雾已烘入地面缓存，逐帧雾关闭 —— 原本 6 层大面积 screen 混合是全帧最大开销 */ }
 
 /* ---------------- 秘境 ---------------- */
 function drawArenaGround(el){
@@ -2178,8 +2197,11 @@ function drawArenaGround(el){
 
 /* ---------------- 主渲染 ---------------- */
 function render(){
-  const dt = Math.min(0.05, (render._last ? (now()-render._last)/1000 : 0.016));
-  render._last = now();
+  const rawNow = now();
+  const rawMs = render._last ? (rawNow-render._last) : 16.7;
+  const dt = Math.min(0.05, rawMs/1000);
+  render._last = rawNow;
+  if(G.mode==='playing') perfWatch(rawMs);
   G.time += dt;
 
   if(G.mode==='playing') tickClientVisuals(dt);
@@ -2340,7 +2362,10 @@ function render(){
   drawFog();
   ctx.restore();
 
-  if(G.mode!=='login') drawMinimap();
+  if(G.mode!=='login'){
+    render._mmTick = (render._mmTick||0)+1;
+    if(render._mmTick % 3 === 0) drawMinimap();   // 小地图约 20fps，够用
+  }
   requestAnimationFrame(render);
 }
 
