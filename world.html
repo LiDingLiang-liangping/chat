@@ -5,29 +5,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>版本选择</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif}
-body{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f4f7fa;gap:24px}
-h2{color:#333}
-.btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
-button{padding:14px 32px;font-size:18px;border:none;border-radius:10px;cursor:pointer;transition:.2s}
-#btnNew{background:#2563eb;color:#fff}
-#btnOld{background:#6b7280;color:#fff}
-button:hover{opacity:0.85}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}
+body{
+    background-color:#f5f7fa;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:32px;
+}
+h1{
+    font-size:36px;
+    color:#222;
+}
+.btn-group{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+button{
+    padding:18px 42px;
+    border:none;
+    border-radius:14px;
+    font-size:26px;
+    color:white;
+    cursor:pointer;
+}
+.btn-new{background-color:#2563eb;}
+.btn-old{background-color:#6b7280;}
+.btn-w0{background-color:#059669;}
 </style>
 </head>
 <body>
-<h2>请选择版本</h2>
-<div class="btns">
-<button id="btnNew">New 新版</button>
-<button id="btnOld">Old 旧版</button>
+<h1>请选择版本</h1>
+<div class="btn-group">
+<button class="btn-new" id="btnNew">New 新版</button>
+<button class="btn-old" id="btnOld">Old 旧版</button>
+<button class="btn-w0" id="btnW0">World0</button>
 </div>
 
 <script>
+// 获取当前页面的查询字符串（?room=World%201&name=1）
+const search = window.location.search;
+
 document.getElementById('btnNew').onclick = ()=>{
-  location.href = 'world_new.html'
+    location.href = "world_new.html" + search;
 }
 document.getElementById('btnOld').onclick = ()=>{
-  location.href = 'world1.html'
+    location.href = "world1.html" + search;
+}
+document.getElementById('btnW0').onclick = ()=>{
+    location.href = "world0.html" + search;
 }
 </script>
 </body>
