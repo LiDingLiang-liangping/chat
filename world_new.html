@@ -2938,6 +2938,40 @@ function addPlayer(id, name, opt, isHostPlayer){
 }
 
 /* ---------------- 房主 Tick ---------------- */
+/* ---------------- 固定步长调度 ----------------
+   逻辑永远按 TICK_MS(33ms) 一步推进，与渲染帧率完全解耦：
+   渲染掉到 20fps 也不会变慢，渲染冲到 120fps 也不会变快。
+   落后时在一帧内补步（最多 3 步），仍然跟不上就丢弃积压，避免螺旋卡死。 */
+const SIM_STEP_MS = TICK_MS;
+let simAcc = 0, simLast = 0, simStarted = false;
+let simStepsRun = 0;
+
+function simLoop(ts){
+  requestAnimationFrame(simLoop);
+  if(!G.isHost || G.mode!=='playing'){ simLast = ts; simAcc = 0; return; }
+  if(!simLast) simLast = ts;
+  let delta = ts - simLast;
+  simLast = ts;
+  if(delta > 250) delta = 250;          // 切标签页回来不补一大堆
+  simAcc += delta;
+  let steps = 0;
+  while(simAcc >= SIM_STEP_MS && steps < 3){
+    hostTick();
+    simAcc -= SIM_STEP_MS;
+    steps++; simStepsRun++;
+  }
+  if(steps >= 3 && simAcc > SIM_STEP_MS) simAcc = 0;   // 追不上就丢弃积压
+}
+
+function startSimLoop(){
+  if(simStarted) return;
+  simStarted = true;
+  simLast = 0; simAcc = 0;
+  requestAnimationFrame(simLoop);
+  // 后台标签页 rAF 会停，这里兜底由定时器推进，联机不至于卡死
+  setInterval(()=>{ if(document.hidden) hostTick(); }, TICK_MS);
+}
+
 function hostTick(){
   if(!G.isHost || G.mode!=='playing') return;
   const dt = TICK_MS/1000;
@@ -4630,7 +4664,7 @@ function startPlaying(isHost){
   if(isHost){
     G.isHost = true;
     initHostWorld();
-    setInterval(hostTick, TICK_MS);
+    startSimLoop();
     setInterval(broadcastSnapshot, SNAP_MS);
     addSys(`洞天「${G.roomName}」已开辟，等待道友踏入`, 'gold');
     const me = getSelf();
