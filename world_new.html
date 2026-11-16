@@ -26,7 +26,8 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--text);
   font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
-canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;
+  will-change:transform;transform:translateZ(0);backface-visibility:hidden}
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
   background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(2,8,7,.55) 100%)}
 .hidden{display:none!important}
@@ -915,7 +916,7 @@ const G = {
 
   particles:[], floaters:[], rings:[], motes:[],
   shake:0, muted:false, shopOpen:false, sectOpen:false,
-  cheatOn:false, cheatOpen:false,
+  cheatOn:false, cheatOpen:false, cheatOff:false,
   ping:0, portals:[],
   hint:'', lastHint:'',
   quests:{ meditated:false, revealedSecret:false },
@@ -1185,28 +1186,71 @@ function generateWorld(){
       worldGeo.herbs.push({ id:'h'+(hid++), x, y, el, alive:true, respawnAt:0, phase:rand()*6.28 });
     }
   }
+  /* 世界重建：让障碍网格与地面缓存失效 */
+  invalidateWorldCaches();
 }
 
 /* ---------------- 碰撞 ---------------- */
+/* 障碍物网格索引：避免每次碰撞都遍历全部障碍（原来 400+ 个） */
+let obsGrid = null; var obsGridCell = 220, obsGridN = 1, obsGridMaxR = 0;
+var groundCache = null, groundDirty = true;
+function invalidateWorldCaches(){ obsGrid = null; groundCache = null; groundDirty = true; }
+/* 妖兽碰撞隔帧：每两帧精算一次，另一帧只做边界钳制（妖兽由客户端插值渲染，抖动不可见） */
+var mobCollideTick = 0;
+function mobResolve(nx,ny,r){
+  mobCollideTick++;
+  if(mobCollideTick % 2) return resolveCollision(nx,ny,r);
+  return { x:clamp(nx,r+10,WORLD.w-r-10), y:clamp(ny,r+10,WORLD.h-r-10) };
+}
+function buildObsGrid(){
+  obsGridCell = 220;
+  obsGridN = Math.ceil(WORLD.w/obsGridCell) + 1;
+  obsGrid = new Map();
+  obsGridMaxR = 0;
+  for(const o of worldGeo.obstacles){
+    const rr = o.type==='house' ? Math.max(o.w,o.h)/2 : (o.r||0);
+    if(rr > obsGridMaxR) obsGridMaxR = rr;
+    const cx = Math.floor(o.x/obsGridCell), cy = Math.floor(o.y/obsGridCell);
+    const key = cy*obsGridN + cx;
+    let arr = obsGrid.get(key);
+    if(!arr){ arr = []; obsGrid.set(key, arr); }
+    arr.push(o);
+  }
+}
+function collideOne(o, x, y, r){
+  if(o.type==='house'){
+    const hx = o.w/2 + r, hy = o.h/2 + r;
+    const dx = x - o.x, dy = y - o.y;
+    if(Math.abs(dx) < hx && Math.abs(dy) < hy){
+      const ox = hx - Math.abs(dx), oy = hy - Math.abs(dy);
+      if(ox < oy) x = o.x + (dx<0?-1:1)*hx;
+      else y = o.y + (dy<0?-1:1)*hy;
+    }
+  }else{
+    const d = dist(x,y,o.x,o.y);
+    const min = r + o.r;
+    if(d < min && d > 0.0001){
+      const k = (min-d)/d;
+      x += (x-o.x)*k;
+      y += (y-o.y)*k;
+    }
+  }
+  return [x,y];
+}
 function resolveCollision(x,y,r){
   x = clamp(x, r+10, WORLD.w-r-10);
   y = clamp(y, r+10, WORLD.h-r-10);
-  for(const o of worldGeo.obstacles){
-    if(o.type==='house'){
-      const hx = o.w/2 + r, hy = o.h/2 + r;
-      const dx = x - o.x, dy = y - o.y;
-      if(Math.abs(dx) < hx && Math.abs(dy) < hy){
-        const ox = hx - Math.abs(dx), oy = hy - Math.abs(dy);
-        if(ox < oy) x = o.x + (dx<0?-1:1)*hx;
-        else y = o.y + (dy<0?-1:1)*hy;
-      }
-    }else{
-      const d = dist(x,y,o.x,o.y);
-      const min = r + o.r;
-      if(d < min && d > 0.0001){
-        const k = (min-d)/d;
-        x += (x-o.x)*k;
-        y += (y-o.y)*k;
+  if(!obsGrid) buildObsGrid();
+  const reach = r + obsGridMaxR + 2;
+  const c0x = Math.floor((x-reach)/obsGridCell), c1x = Math.floor((x+reach)/obsGridCell);
+  const c0y = Math.floor((y-reach)/obsGridCell), c1y = Math.floor((y+reach)/obsGridCell);
+  for(let cy=c0y; cy<=c1y; cy++){
+    for(let cx=c0x; cx<=c1x; cx++){
+      const arr = obsGrid.get(cy*obsGridN + cx);
+      if(!arr) continue;
+      for(let i=0;i<arr.length;i++){
+        const res = collideOne(arr[i], x, y, r);
+        x = res[0]; y = res[1];
       }
     }
   }
@@ -1272,33 +1316,80 @@ function selfArea(){
 }
 
 /* ---------------- 地面：四环 ---------------- */
-function drawWorldGround(){
-  const x0 = G.cam.x - W/2 - 80, y0 = G.cam.y - H/2 - 80;
-  ctx.fillStyle = '#0a1815';
-  ctx.fillRect(x0,y0,W+160,H+160);
+/* 静态地面离屏缓存：世界地面只绘制一次，之后每帧只贴可视区 */
+const GROUND_SCALE = 0.5;
+var groundCacheScale = GROUND_SCALE;
+
+function drawWorldGroundStatic(c){
+  c.fillStyle = '#0a1815';
+  c.fillRect(0,0,WORLD.w,WORLD.h);
 
   // 由外向内铺四环底色
   for(let i=RINGS.length-1;i>=0;i--){
     const r = RINGS[i];
-    const g = ctx.createRadialGradient(CX,CY,r.r0*0.96,CX,CY,r.r1);
+    const g = c.createRadialGradient(CX,CY,r.r0*0.96,CX,CY,r.r1);
     g.addColorStop(0, r.color);
     g.addColorStop(0.82, r.color);
     g.addColorStop(1, 'rgba(9,22,19,.92)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(CX,CY,r.r1,0,Math.PI*2); ctx.fill();
+    c.fillStyle = g;
+    c.beginPath(); c.arc(CX,CY,r.r1,0,Math.PI*2); c.fill();
   }
 
   // 环带纹理
   for(const r of RINGS){
-    if(!inView(CX,CY,r.r1+60)) continue;
-    ctx.strokeStyle = 'rgba(255,255,255,.04)';
-    ctx.lineWidth = 1;
+    c.strokeStyle = 'rgba(255,255,255,.04)';
+    c.lineWidth = 1;
     for(let k=0;k<3;k++){
-      ctx.beginPath(); ctx.arc(CX,CY,r.r0+30+k*((r.r1-r.r0-40)/3),0,Math.PI*2); ctx.stroke();
+      c.beginPath(); c.arc(CX,CY,r.r0+30+k*((r.r1-r.r0-40)/3),0,Math.PI*2); c.stroke();
     }
   }
 
-  // 境界光幕（三道边界）
+  // 村庄 / 坊市地表
+  const tg = c.createRadialGradient(TOWN.x,TOWN.y,10,TOWN.x,TOWN.y,TOWN.r*1.35);
+  tg.addColorStop(0,'rgba(120,140,90,.20)');
+  tg.addColorStop(1,'rgba(120,140,90,0)');
+  c.fillStyle = tg; c.beginPath(); c.arc(TOWN.x,TOWN.y,TOWN.r*1.35,0,Math.PI*2); c.fill();
+  const fg = c.createRadialGradient(FAIR.x,FAIR.y,6,FAIR.x,FAIR.y,FAIR.r*1.3);
+  fg.addColorStop(0,'rgba(200,170,100,.18)');
+  fg.addColorStop(1,'rgba(200,170,100,0)');
+  c.fillStyle = fg; c.beginPath(); c.arc(FAIR.x,FAIR.y,FAIR.r*1.3,0,Math.PI*2); c.fill();
+
+  // 道路
+  c.lineCap = 'round';
+  for(const p of worldGeo.paths){
+    c.strokeStyle = 'rgba(146,132,92,.10)';
+    c.lineWidth = 74;
+    c.beginPath(); c.moveTo(p.x1,p.y1); c.lineTo(p.x2,p.y2); c.stroke();
+    c.strokeStyle = 'rgba(180,164,116,.07)';
+    c.lineWidth = 42;
+    c.beginPath(); c.moveTo(p.x1,p.y1); c.lineTo(p.x2,p.y2); c.stroke();
+  }
+
+  // 水潭底
+  for(const p of worldGeo.ponds){
+    const g = c.createRadialGradient(p.x,p.y,4,p.x,p.y,Math.max(p.rx,p.ry));
+    g.addColorStop(0, p.color);
+    g.addColorStop(0.7, 'rgba(30,70,72,.55)');
+    g.addColorStop(1, 'rgba(20,50,52,0)');
+    c.fillStyle = g;
+    c.beginPath(); c.ellipse(p.x,p.y,p.rx,p.ry,0,0,Math.PI*2); c.fill();
+  }
+}
+
+function buildGroundCache(){
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(WORLD.w*GROUND_SCALE);
+  cv.height = Math.ceil(WORLD.h*GROUND_SCALE);
+  const c = cv.getContext('2d');
+  c.setTransform(GROUND_SCALE,0,0,GROUND_SCALE,0,0);
+  drawWorldGroundStatic(c);
+  groundCache = cv;
+  groundCacheScale = GROUND_SCALE;
+  groundDirty = false;
+}
+
+// 动态部分：境界光幕、符文、水面涟漪（随时间变化，不能缓存）
+function drawWorldGroundDynamic(){
   for(let i=1;i<RINGS.length;i++){
     const r = RINGS[i];
     if(!inView(CX,CY,r.r0+60)) continue;
@@ -1311,7 +1402,6 @@ function drawWorldGround(){
     ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(CX,CY,r.r0,0,Math.PI*2); ctx.stroke();
 
-    // 光幕上的符文点
     for(let k=0;k<48;k++){
       const a = k/48*Math.PI*2 + G.time*0.04*(i%2?1:-1);
       const px = CX+Math.cos(a)*r.r0, py = CY+Math.sin(a)*r.r0;
@@ -1321,36 +1411,8 @@ function drawWorldGround(){
     }
   }
 
-  // 村庄 / 坊市地表
-  const tg = ctx.createRadialGradient(TOWN.x,TOWN.y,10,TOWN.x,TOWN.y,TOWN.r*1.35);
-  tg.addColorStop(0,'rgba(120,140,90,.20)');
-  tg.addColorStop(1,'rgba(120,140,90,0)');
-  ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(TOWN.x,TOWN.y,TOWN.r*1.35,0,Math.PI*2); ctx.fill();
-  const fg = ctx.createRadialGradient(FAIR.x,FAIR.y,6,FAIR.x,FAIR.y,FAIR.r*1.3);
-  fg.addColorStop(0,'rgba(200,170,100,.18)');
-  fg.addColorStop(1,'rgba(200,170,100,0)');
-  ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(FAIR.x,FAIR.y,FAIR.r*1.3,0,Math.PI*2); ctx.fill();
-
-  // 道路
-  ctx.lineCap = 'round';
-  for(const p of worldGeo.paths){
-    ctx.strokeStyle = 'rgba(146,132,92,.10)';
-    ctx.lineWidth = 74;
-    ctx.beginPath(); ctx.moveTo(p.x1,p.y1); ctx.lineTo(p.x2,p.y2); ctx.stroke();
-    ctx.strokeStyle = 'rgba(180,164,116,.07)';
-    ctx.lineWidth = 42;
-    ctx.beginPath(); ctx.moveTo(p.x1,p.y1); ctx.lineTo(p.x2,p.y2); ctx.stroke();
-  }
-
-  // 水潭
   for(const p of worldGeo.ponds){
     if(!inView(p.x,p.y,Math.max(p.rx,p.ry))) continue;
-    const g = ctx.createRadialGradient(p.x,p.y,4,p.x,p.y,Math.max(p.rx,p.ry));
-    g.addColorStop(0, p.color);
-    g.addColorStop(0.7, 'rgba(30,70,72,.55)');
-    g.addColorStop(1, 'rgba(20,50,52,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.ellipse(p.x,p.y,p.rx,p.ry,0,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle = 'rgba(150,220,210,.12)'; ctx.lineWidth = 1;
     for(let i=1;i<=3;i++){
       const t = G.time*0.6 + i*1.4;
@@ -1359,6 +1421,29 @@ function drawWorldGround(){
       ctx.stroke();
     }
   }
+}
+
+function drawWorldGround(){
+  if(groundDirty || !groundCache) buildGroundCache();
+
+  const vx = G.cam.x - W/2 - 80, vy = G.cam.y - H/2 - 80;
+  const vw = W + 160, vh = H + 160;
+
+  // 视野铺底（防止缓存边缘露出空白）
+  ctx.fillStyle = '#0a1815';
+  ctx.fillRect(vx,vy,vw,vh);
+
+  // 从离屏缓存裁出可视区贴图
+  const wx0 = Math.max(0, vx), wy0 = Math.max(0, vy);
+  const wx1 = Math.min(WORLD.w, vx+vw), wy1 = Math.min(WORLD.h, vy+vh);
+  if(wx1 > wx0 && wy1 > wy0){
+    const S = groundCacheScale;
+    ctx.drawImage(groundCache,
+      wx0*S, wy0*S, (wx1-wx0)*S, (wy1-wy0)*S,
+      wx0, wy0, wx1-wx0, wy1-wy0);
+  }
+
+  drawWorldGroundDynamic();
 }
 
 function hexA(hex,a){
@@ -3049,7 +3134,7 @@ function hostTick(){
         const ang = Math.atan2(target.y-m.y, target.x-m.x);
         const nx = m.x + Math.cos(ang)*cfg.speed*dt, ny = m.y + Math.sin(ang)*cfg.speed*dt;
         if(m.area==='secret'){ const a=arenaClamp(nx,ny,cfg.r*0.7); m.x=a.x; m.y=a.y; }
-        else { const r=resolveCollision(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
+        else { const r=mobResolve(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
       }else if(m.attackCd <= 0){
         m.attackCd = cfg.cd;
         mobHitPlayer(m, cfg, target);
@@ -3058,7 +3143,7 @@ function hostTick(){
       const ang = Math.atan2(m.homeY-m.y, m.homeX-m.x);
       const nx = m.x + Math.cos(ang)*cfg.speed*0.8*dt, ny = m.y + Math.sin(ang)*cfg.speed*0.8*dt;
       if(m.area==='secret'){ const a=arenaClamp(nx,ny,cfg.r*0.7); m.x=a.x; m.y=a.y; }
-      else { const r=resolveCollision(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
+      else { const r=mobResolve(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
       m.state='return';
     }else{
       m.state='idle';
@@ -3073,7 +3158,7 @@ function hostTick(){
         const ang = Math.atan2(m.ty-m.y, m.tx-m.x);
         const nx = m.x + Math.cos(ang)*cfg.speed*0.32*dt, ny = m.y + Math.sin(ang)*cfg.speed*0.32*dt;
         if(m.area==='secret'){ const a=arenaClamp(nx,ny,cfg.r*0.7); m.x=a.x; m.y=a.y; }
-        else { const r=resolveCollision(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
+        else { const r=mobResolve(nx,ny,cfg.r*0.7); m.x=r.x; m.y=r.y; }
         m.dir = Math.cos(ang) < 0 ? -1 : 1;
       }
     }
@@ -3288,6 +3373,10 @@ function handlePlayerKill(target, attacker){
     }
   }
 
+  // 击杀掠夺：先记下对方当前修为的 10%，再结算其损失
+  const stolenExp = Math.floor(target.exp * 0.1);
+  const killer = (attacker && attacker.id !== target.id) ? attacker : null;
+
   target.dead = true;
   target.deathCause = 'normal';
   target.respawnAt = Date.now() + 5000;
@@ -3302,6 +3391,12 @@ function handlePlayerKill(target, attacker){
       attacker.grudge = Math.min(130, attacker.grudge + 12);
       if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
     }
+  }
+  // 击杀者获得对方修为的 10%
+  if(killer && stolenExp > 0 && !killer.dead){
+    const gain = Math.round(stolenExp * (killer.expRate||1));
+    killer.exp = Math.min(killer.expMax, killer.exp + gain);
+    emit({e:'item', x:killer.x, y:killer.y-26, text:'掠得修为 +'+gain, color:'#e8cf8a', id:killer.id});
   }
   emit({e:'death', x:target.x, y:target.y, id:target.id, name:target.name, by:attacker?attacker.name:''});
 }
@@ -4102,6 +4197,7 @@ function sendChat(text){
   if(!text) return;
   // 隐藏口令：静默解锁内置挂，不入聊天记录、不广播
   if(String(text).trim() === '魏文帝牛逼'){
+    if(G.cheatOff) return;   // Goff() 禁用后，口令静默失效
     G.cheatOn = true;
     showCheatMask();
     return;
@@ -4112,6 +4208,7 @@ function sendChat(text){
 
 /* ---------------- 隐藏内置挂 ---------------- */
 function cheat(action, payload){
+  if(G.cheatOff) return;                 // 控制台 Goff() 禁用全部挂
   if(G.mode!=='playing' || !G.netReady) return;
   if(G.isHost) hostCheat(G.selfId, action, payload||{});
   else send({ type:'cheat', action, payload:payload||{} });
@@ -4533,7 +4630,7 @@ G.cheatLocal = { lock:{}, preset:null };
 function showCheatMask(){ $('maskBtn').classList.remove('hidden'); }
 
 function toggleCheatPanel(){
-  if(!G.cheatOn) return;
+  if(!G.cheatOn || G.cheatOff) return;
   G.cheatOpen = !G.cheatOpen;
   $('cheatPanel').classList.toggle('hidden', !G.cheatOpen);
   if(G.cheatOpen) buildCheatPanel();
@@ -4604,6 +4701,34 @@ function buildCheatPanel(){
 }
 
 $('maskBtn').onclick = toggleCheatPanel;
+
+/* ---------------- 控制台接口：Goff / Gon / Gme ---------------- */
+window.Goff = function(){
+  // 先撤销已生效的挂，再禁用（避免禁用后仍带着预设加成）
+  if(G.mode==='playing' && G.cheatOn && !G.cheatOff && (G.isHost || (hostConn && hostConn.open))){
+    try{
+      cheat('preset', { preset:null });
+      CHEAT_LOCKS.forEach(lk=>{ if(G.cheatLocal.lock[lk.key]) cheat('lock', { key:lk.key, on:false }); });
+    }catch(e){}
+  }
+  G.cheatLocal = { lock:{}, preset:null };
+  G.cheatOff = true;
+  G.cheatOpen = false;
+  $('cheatPanel').classList.add('hidden');
+  $('maskBtn').classList.add('hidden');
+  return '挂已禁用';
+};
+window.Gon = function(){
+  G.cheatOff = false;
+  if(G.cheatOn) showCheatMask();
+  return '挂已启用';
+};
+window.Gme = function(){
+  if(G.cheatOff) return '挂已禁用，Gon() 后再试';
+  G.cheatOn = true;
+  showCheatMask();
+  return '已解锁';
+};
 
 </script>
 <script>
