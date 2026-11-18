@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-en="CS Tactics">CS 战术回合 · 薄客户端</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{padding:12px;max-width:960px;margin:0 auto;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#fff;color:#222}
+button{padding:8px 12px;font-size:14px;cursor:pointer;border-radius:5px;border:1px solid #999;background:#fff}
+button.primary{background:#0066cc;border-color:#0066cc;color:#fff}
+button.ghost{background:#fff;border:1px solid #999;color:#222}
+button:disabled{opacity:.45;cursor:not-allowed}
+input{font-size:16px;padding:7px 9px;border:1px solid #999;border-radius:5px}
+.hint{color:#999;font-size:12.5px;line-height:1.6}
+.view{display:none}.view.active{display:block}
+.panel{border:1px solid #ddd;border-radius:8px;margin-top:10px;padding:10px;background:#fff}
+#status{color:#226;font-size:13px}
+#userList{list-style:none}
+.user-item{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #eee;font-size:14px}
+.user-item .nm{flex:1}
+.tagT{color:#c0392b;font-weight:600}.tagCT{color:#2471a3;font-weight:600}.tagSpec{color:#888}
+#hud{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:8px 0;font-size:14px}
+#hud .score{font-weight:700;font-size:16px}
+#timerBar{height:22px;background:#eee;border:1px solid #999;border-radius:5px;position:relative;margin:6px 0;overflow:hidden}
+#timerFill{height:100%;background:#0066cc;width:100%;transition:width .3s linear}
+#timerTxt{position:absolute;inset:0;text-align:center;font-size:13px;line-height:22px}
+#map{border:2px solid #333;background:#d8cdb4;display:block;width:100%;max-width:760px;touch-action:none;border-radius:4px}
+#planBar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+#planBar .ap{font-weight:700;color:#b9770e}
+#planBar button.sel{background:#0066cc;color:#fff;border-color:#0066cc}
+#buyGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:8px 0}
+#buyGrid .wp{border:1px solid #999;border-radius:5px;padding:6px;font-size:12.5px;cursor:pointer}
+#buyGrid .wp:hover{background:#eef2fb}
+#buyGrid .wp.cant{opacity:.45;cursor:not-allowed}
+#buyGrid .wp .pr{color:#b9770e;font-weight:600}
+.guessRow,.voteRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+.modal-mask.show{display:flex}
+.modal{background:#fff;border:1px solid #999;border-radius:8px;padding:20px;width:min(400px,92vw)}
+.modal .mt{font-size:17px;font-weight:700;margin-bottom:6px}
+.modal .md{font-size:14px;color:#444;line-height:1.7;margin-bottom:16px;white-space:pre-line}
+.modal .mbtns{display:flex;gap:10px;justify-content:flex-end}
+.toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:#fff;border:1px solid #999;font-size:13.5px;padding:10px 16px;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
+#entry{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:99}
+#entry .box{text-align:center;display:flex;flex-direction:column;gap:8px;width:min(320px,90vw)}
+</style>
+</head>
+<body>
+<div id="entry"><div class="box">
+  <b style="font-size:18px" data-en="CS Tactics (thin client)">CS 战术回合 · 客户端</b>
+  <input id="nameInput" placeholder="昵称" maxlength="20">
+  <input id="roomInput" placeholder="主房间ID" value="MainRoom">
+  <button id="enterBtn" class="primary" data-en="Connect">连接</button>
+  <span id="status" class="hint"></span>
+</div></div>
+
+<section id="lobbyView" class="view">
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <b data-en="CS Lobby">CS 大厅</b><span id="lobbyState" class="hint"></span>
+      <span style="flex:1"></span>
+      <button id="langBtn" class="ghost">EN</button>
+    </div>
+    <ul id="userList"></ul>
+    <div id="lobbyOps" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button id="startBtn" class="primary" data-en="Start match (even players >=2)">开始对局（偶数玩家≥2）</button>
+      <button id="addBotBtn" data-en="Add BOT">🤖 加 BOT</button>
+      <button id="rmBotBtn" data-en="Remove BOT">🤖 减 BOT</button>
+    </div>
+    <div id="guessBox" class="guessRow" style="display:none">
+      <span data-en="Guess 1-100 for side pick">选边猜数（1-100）：</span>
+      <input id="guessInput" type="number" min="1" max="100" style="width:90px">
+      <button id="guessBtn" class="primary" data-en="Submit">提交</button>
+      <span id="guessStatus" class="hint"></span>
+    </div>
+    <div id="voteBox" class="voteRow" style="display:none">
+      <span data-en="4:4 vote: 0/1/2 tickets">4:4 平局投票（每人 0/1/2 票）：</span>
+      <button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button>
+      <span id="voteStatus" class="hint"></span>
+    </div>
+  </div>
+  <p class="hint" data-en="All data processed by the main-room host. If host drops, first joiner takes over.">所有数据由主房间主机处理；主机掉线后第一个进房的人会接任。</p>
+</section>
+
+<section id="gameView" class="view">
+  <div id="hud">
+    <span class="score" id="scoreTxt">T 0 : 0 CT</span>
+    <span id="roundTxt"></span><span id="phaseTxt"></span>
+    <span id="moneyTxt"></span><span id="loadoutTxt" class="hint"></span>
+    <span id="specTxt" class="hint" style="color:#7d3c98"></span>
+  </div>
+  <div id="timerBar"><div id="timerFill"></div><span id="timerTxt"></span></div>
+  <canvas id="map" width="800" height="800"></canvas>
+  <div id="planBar">
+    <span data-en="AP">行动点</span> <span class="ap" id="apLeft">5000</span>
+    <button class="ghost mode sel" data-m="move" data-en="Move">移动</button>
+    <button class="ghost mode" data-m="hold" data-en="Hold">架枪</button>
+    <button class="ghost mode" data-m="throw" data-en="Nade">道具</button>
+    <button class="ghost mode" data-m="loot" data-en="Loot">捡枪</button>
+    <button class="ghost mode" data-m="plant" data-en="Plant">下包</button>
+    <button class="ghost mode" data-m="defuse" data-en="Defuse">拆包</button>
+    <button class="ghost mode" data-m="face" data-en="Face">面向</button>
+    <span style="width:6px"></span>
+    <button class="ghost eng sel" data-e="none" data-en="Hold fire">不主动打</button>
+    <button class="ghost eng" data-e="stop" data-en="Stop-shoot">急停</button>
+    <button class="ghost eng" data-e="run" data-en="Run-shoot">跑打</button>
+    <label class="hint" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="walkChk" style="width:auto"> <span data-en="Shift-walk">静步</span></label>
+    <span style="width:6px"></span>
+    <button class="ghost" id="undoBtn" data-en="Undo">撤销</button>
+    <button class="primary" id="submitPlanBtn" data-en="Submit plan">提交本阶段</button>
+    <span id="planHint" class="hint"></span>
+  </div>
+  <div id="buyWrap" style="display:none">
+    <div style="display:flex;gap:10px;align-items:center"><b data-en="Buy phase">购买阶段</b><span id="buyMoney" style="font-weight:700"></span><span id="buyTimer" class="hint"></span></div>
+    <div id="buyGrid"></div>
+  </div>
+</section>
+
+<div class="modal-mask" id="modalMask"><div class="modal"><div class="mt" id="modalTitle"></div><div class="md" id="modalDesc"></div><div class="mbtns" id="modalBtns"></div></div></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+/* ================= 基础 ================= */
+let LANG=localStorage.getItem("cs_lang")||"zh";
+function applyLang(){
+  document.querySelectorAll("[data-en]").forEach(el=>{if(!el.dataset.zh)el.dataset.zh=el.textContent;el.textContent=LANG==="en"?el.dataset.en:el.dataset.zh;});
+  document.querySelectorAll("[data-enph]").forEach(el=>{if(!el.dataset.zhph)el.dataset.zhph=el.placeholder;el.placeholder=LANG==="en"?el.dataset.enph:el.dataset.zhph;});
+  $("langBtn").textContent=LANG==="en"?"中":"EN";
+}
+$("langBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";localStorage.setItem("cs_lang",LANG);applyLang();};
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;$("toastWrap").appendChild(d);setTimeout(()=>d.remove(),3200);}
+function showModal(title,desc,btns){
+  $("modalTitle").textContent=title;$("modalDesc").textContent=desc;
+  const b=$("modalBtns");b.innerHTML="";
+  (btns||[{t:"OK",fn:()=>$("modalMask").classList.remove("show")}]).forEach(o=>{
+    const btn=document.createElement("button");btn.className="primary";btn.textContent=o.t;btn.onclick=o.fn;b.appendChild(btn);});
+  $("modalMask").classList.add("show");
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* ================= 连接 ================= */
+let peer=null,conn=null,myName="",roomId="",myId="";
+let W=null;                 // csInit 下发的表
+let roster=null;            // 最近一次 csRoster
+let stage="idle";
+let planSecsLeft=0,timerInt=null;
+
+(function prefill(){
+  const q=new URLSearchParams(location.search);
+  const nm=(q.get("name")||"").trim()||localStorage.getItem("chat_nick")||"";
+  $("nameInput").value=nm;
+  $("roomInput").value=(q.get("room")||"").trim()||"MainRoom";
+})();
+$("enterBtn").onclick=()=>{
+  myName=$("nameInput").value.trim();roomId=$("roomInput").value.trim();
+  if(!myName||!roomId)return;
+  localStorage.setItem("chat_nick",myName);
+  connect();
+};
+function connect(){
+  status("正在连接主房间 "+roomId+" …");
+  peer=new Peer();
+  peer.on("open",id=>{
+    myId=id;
+    conn=peer.connect(roomId,{serialization:"json",reliable:true});
+    conn.on("open",()=>{
+      status("✅ 已连接");
+      conn.send({type:"join",name:myName,cs:1});
+      csSend({type:"csJoin",name:myName});
+      $("entry").style.display="none";
+      $("lobbyView").classList.add("active");
+    });
+    conn.on("data",onData);
+    conn.on("close",()=>{status("❌ 与主机会话断开，请刷新重连");toast("连接断开");});
+  });
+  peer.on("error",e=>{status("❌ "+(e.type==="peer-unavailable"?"找不到房间 "+roomId+" 的主机":"错误:"+e.type));});
+}
+function status(t){$("status").textContent=t;}
+function csSend(o){if(conn&&conn.open)conn.send(Object.assign({ch:"cs"},o));}
+
+/* ================= 消息 ================= */
+function onData(d){
+  if(!d||d.ch!=="cs")return;
+  switch(d.type){
+    case"csInit":W=d;break;
+    case"csRoster":roster=d;renderRoster();renderHUD();if(stage==="buy")renderBuy();if(stage==="plan")renderCanvas();break;
+    case"csStage":onStage(d);break;
+    case"csMsg":toast(d.text);break;
+    case"csGuessCnt":$("guessStatus").textContent=d.n+"/"+d.total;break;
+    case"csGuessResult":showModal("选边结果",`系统随机数：${d.sys}\nT 队平均：${d.avgT}　CT 队平均：${d.avgCT}\n${d.winner==="T"?"T":"CT"} 队获得 T 边`);break;
+    case"csPlanCnt":$("planHint").textContent=`已提交 ${d.n}/${d.total}`;break;
+    case"csSim":onSim(d);break;
+  }
+}
+function me(){return roster?roster.players.find(p=>p.id===myId):null;}
+function isSpec(){return roster&&roster.watchers.includes(myId);}
+function onStage(d){
+  stage=d.stage;
+  $("guessBox").style.display=stage==="guess"?"flex":"none";
+  $("voteBox").style.display=stage==="vote"?"flex":"none";
+  if(["buy","plan","settle","roundEnd","vote","matchEnd"].includes(d.stage)){
+    $("lobbyView").classList.remove("active");$("gameView").classList.add("active");
+  }else{$("gameView").classList.remove("active");$("lobbyView").classList.add("active");}
+  if(d.stage==="buy"){
+    $("buyWrap").style.display="block";$("planBar").style.display="none";
+    planSecsLeft=d.secs||20;renderBuy();
+  }
+  if(d.stage==="plan"){
+    $("buyWrap").style.display="none";$("planBar").style.display=isSpec()?"none":"flex";
+    resetPlan(d.ap||5000);
+    $("phaseTxt").textContent=`阶段 ${d.phase}${d.burn?"（T 团灭·燃烧引信）":""}${d.planted?" · 已下包":""}`;
+    planSecsLeft=d.secs||20;
+    $("submitPlanBtn").disabled=isSpec();
+  }
+  if(d.stage==="settle"){$("submitPlanBtn").disabled=true;$("planHint").textContent="结算中…";}
+  if(d.stage==="roundEnd"){
+    const how={elim:"歼灭",bomb:"炸弹引爆",defuse:"炸弹拆除",time:"时间耗尽"}[d.how]||d.how;
+    toast(`回合 ${d.round} 结束：${d.winner==="T"?"T":"CT"} 胜（${how}）`);
+  }
+  if(d.stage==="vote"){$("voteStatus").textContent="";}
+  if(d.stage==="matchEnd"){
+    const t=d.winner==="draw"?"平局":(d.winner==="T"?"T 队获胜":"CT 队获胜");
+    showModal("对局结束",`最终比分 T ${d.scoreT} : ${d.scoreCT} CT\n${t}\n（3 秒后回大厅）`,[{t:"OK",fn:()=>$("modalMask").classList.remove("show")}]);
+    setTimeout(()=>{ if(stage==="matchEnd"){stage="lobby";$("gameView").classList.remove("active");$("lobbyView").classList.add("active");} },3000);
+  }
+  if(d.secs){planSecsLeft=d.secs;}
+  renderHUD();renderRoster();
+}
+setInterval(()=>{ /* 计时条 */
+  if(["buy","plan"].includes(stage)&&planSecsLeft>0){
+    planSecsLeft--;
+    $("timerTxt").textContent=planSecsLeft+"s";
+    $("timerFill").style.width=Math.max(0,planSecsLeft/20*100)+"%";
+    $("buyTimer").textContent=planSecsLeft+"s";
+  }
+},1000);
+
+/* ================= 大厅 ================= */
+function renderRoster(){
+  if(!roster)return;
+  const ul=$("userList");ul.innerHTML="";
+  roster.players.forEach(p=>{
+    const li=document.createElement("li");li.className="user-item";
+    const tag=p.side==='T'?'<span class="tagT">T</span>':p.side==='CT'?'<span class="tagCT">CT</span>':'<span class="tagSpec">—</span>';
+    li.innerHTML=`<span class="nm">${p.bot?"🤖 ":""}${esc(p.name)}${p.id===myId?"（你）":""}</span>${tag}<span class="hint">$${p.money} · ${p.loadout||""}</span>`;
+    ul.appendChild(li);
+  });
+  roster.watchers.forEach(w=>{
+    const li=document.createElement("li");li.className="user-item";
+    li.innerHTML=`<span class="nm">👁 ${esc((roster.players.find(p=>p.id===w)||{}).name||w)}</span><span class="tagSpec">旁观</span>`;
+    ul.appendChild(li);
+  });
+  const P=roster.players.filter(p=>!roster.watchers.includes(p.id));
+  $("lobbyState").textContent=`阶段：${roster.stage} · 玩家 ${P.length} · 比分 T ${roster.scoreT}:${roster.scoreCT} CT`;
+  $("startBtn").disabled=!(P.length>=2&&P.length%2===0&&["idle","lobby","matchEnd"].includes(roster.stage));
+  $("startBtn").style.display=roster.stage==="guess"?"none":"";
+  renderHUD();
+}
+function renderHUD(){
+  if(!roster)return;
+  $("scoreTxt").textContent=`T ${roster.scoreT} : ${roster.scoreCT} CT`;
+  $("roundTxt").textContent=roster.round?`回合 ${roster.round}`:"";
+  const m=me();
+  if(m){$("moneyTxt").textContent=`$${m.money}`;$("loadoutTxt").textContent=m.loadout+(m.nades&&m.nades.length?" + "+m.nades.map(n=>W.nades[n][0]).join("/"):"");}
+  $("specTxt").textContent=isSpec()?"👁 旁观模式":"";
+}
+$("startBtn").onclick=()=>csSend({type:"csStart"});
+$("addBotBtn").onclick=()=>csSend({type:"csAddBot"});
+$("rmBotBtn").onclick=()=>csSend({type:"csRemoveBot"});
+$("guessBtn").onclick=()=>{
+  const n=+$("guessInput").value;
+  if(n<1||n>100)return toast("1-100");
+  csSend({type:"guess",n,ts:Date.now()});
+  $("guessBtn").disabled=true;setTimeout(()=>$("guessBtn").disabled=false,2500);
+};
+document.querySelectorAll("#voteBox button[data-v]").forEach(b=>{
+  b.onclick=()=>{csSend({type:"vote",tickets:+b.dataset.v});$("voteStatus").textContent="已投 "+b.dataset.v+" 票";};
+});
+
+/* ================= 购买 ================= */
+function renderBuy(){
+  const m=me();if(!m||!W)return;
+  const grid=$("buyGrid");grid.innerHTML="";
+  $("buyMoney").textContent=`$${m.money}`;
+  const side=m.side==="T"?1:2,pistol=(roster.round===1||roster.round===5);
+  const mk=(label,price,sub,cls,fn)=>{
+    const d=document.createElement("div");d.className="wp "+(cls||"");
+    d.innerHTML=`<b>${esc(label)}</b><br><span class="pr">$${price}</span> <span class="hint">${sub||""}</span>`;
+    d.onclick=fn;grid.appendChild(d);
+  };
+  Object.entries(W.weapons).forEach(([id,w])=>{
+    if(w[2]!==0&&w[2]!==side)return;
+    if(pistol&&w[1]>1)return;
+    mk(w[0],w[3],`伤${w[4]}${w[10]>1?"×"+w[10]:""}/射${w[5]}`,m.money<w[3]?"cant":"",()=>csSend({type:"buy",items:[{op:"buy",id}]}));
+  });
+  Object.entries(W.nades).forEach(([id,g])=>{
+    if(g[4]&&g[4]!==side)return;
+    mk(g[0],g[1],`限${g[3]}`,m.money<g[1]?"cant":"",()=>csSend({type:"buy",items:[{op:"buy",id}]}));
+  });
+  mk("护甲",W.econ.armor,"100",m.money<W.econ.armor?"cant":"",()=>csSend({type:"buy",items:[{op:"buy",id:"armor"}]}));
+  mk("头盔",W.econ.helmet,"",m.money<W.econ.helmet?"cant":"",()=>csSend({type:"buy",items:[{op:"buy",id:"helmet"}]}));
+  if(m.side==="CT")mk("拆包钳",W.econ.kit,"拆包减半",m.money<W.econ.kit||m.kit?"cant":"",()=>csSend({type:"buy",items:[{op:"buy",id:"kit"}]}));
+  (m.weapons||[]).forEach(w=>{
+    const wn=W.weapons[w.id];
+    if(w.tag==="bought"&&(wn[2]===0||wn[2]===side))
+      mk("卖 "+wn[0],wn[3],"原价退回","",()=>csSend({type:"buy",items:[{op:"sell",uid:w.uid}]}));
+  });
+}
+
+/* ================= 规划 ================= */
+let plan={acts:[],face:0,engage:"none",walk:false},planMode="move",myPath=[],apTotal=5000,apUsed=0;
+let nadeSel=null;
+function curWid(){const m=me();if(!m)return"glock";const w=(m.weapons||[]).find(x=>x.uid===m.cur);return w?w.id:(m.side==="T"?"glock":"usp");}
+function apmOf(w){return 1000/(W.weapons[w][6]*0.0254);}
+function pathAP(pts){
+  let d=0;const m=me();if(!m)return 0;
+  const pts2=[[m.x,m.y]].concat(pts);
+  for(let i=1;i<pts2.length;i++)d+=Math.hypot(pts2[i][0]-pts2[i-1][0],pts2[i][1]-pts2[i-1][1]);
+  return Math.round(d*apmOf(curWid())*($("walkChk").checked?2:1));
+}
+function resetPlan(ap){
+  plan={acts:[],face:me()?me().face:0,engage:plan.engage||"none",walk:false};
+  myPath=[];apTotal=ap||5000;apUsed=0;nadeSel=null;
+  $("apLeft").textContent=apTotal;
+  $("planHint").textContent="";
+  document.querySelectorAll("#planBar .mode").forEach(b=>b.classList.toggle("sel",b.dataset.m==="move"));
+  planMode="move";
+}
+document.querySelectorAll("#planBar .mode").forEach(b=>{
+  b.onclick=()=>{planMode=b.dataset.m;nadeSel=null;
+    document.querySelectorAll("#planBar .mode").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");};
+});
+document.querySelectorAll("#planBar .eng").forEach(b=>{
+  b.onclick=()=>{plan.engage=b.dataset.e;
+    document.querySelectorAll("#planBar .eng").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");renderCanvas();};
+});
+$("walkChk").onchange=()=>{apUsed=plan.acts.reduce((s,a)=>s+(a._cost||0),0)+pathAP(myPath);$("apLeft").textContent=apTotal-apUsed;};
+
+const cv=$("map"),ctx=cv.getContext("2d");
+let MAP=null;
+function scaleOf(){return cv.width/(MAP?MAP.size:80);}
+function toMap(e){
+  const r=cv.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return [cx/r.width*(MAP?MAP.size:80),cy/r.height*(MAP?MAP.size:80)];
+}
+function inSiteC(x,y){if(!MAP)return null;for(const k of["A","B"]){const s=MAP.sites[k];if(x>=s[0]&&x<=s[0]+s[2]&&y>=s[1]&&y<=s[1]+s[3])return k;}return null;}
+cv.addEventListener("click",e=>{
+  if(stage!=="plan"||!me()||isSpec())return;
+  const m=me();const[x,y]=toMap(e);
+  if(planMode==="move"){
+    myPath.push([x,y]);
+    const ap=pathAP(myPath);
+    if(ap>apTotal){myPath.pop();toast("AP 不够");return;}
+    plan.apUsedMove=ap;refreshAP();
+  }else if(planMode==="face"){
+    plan.face=Math.round(Math.atan2(y-m.y,x-m.x)*180/Math.PI);toast("面向 "+plan.face+"°");renderCanvas();
+  }else if(planMode==="hold"){
+    const rem=apTotal-apUsed;
+    if(rem<W.rules.holdMin){toast("架枪至少留 "+W.rules.holdMin+" AP");return;}
+    const dir=Math.round(Math.atan2(y-m.y,x-m.x)*180/Math.PI);
+    plan.acts.push({t:"hold",dir,ap:apUsed,_cost:0});toast("架枪 → "+dir+"°");renderCanvas();
+  }else if(planMode==="throw"){
+    if(!m.nades||!m.nades.length)return toast("没有道具");
+    if(!nadeSel)nadeSel=m.nades[0];
+    const d=Math.hypot(x-m.x,y-m.y);
+    if(d>W.rules.throwMax)return toast("太远扔不到（≤"+W.rules.throwMax+"m）");
+    const cost=W.rules.drawAP+Math.round(d/W.rules.throwSpeed*1000);
+    if(apUsed+cost>apTotal)return toast("AP 不够");
+    plan.acts.push({t:"throw",nade:nadeSel,x,y,ap:apUsed,_cost:cost});
+    apUsed+=cost;refreshAP();renderCanvas();
+  }else if(planMode==="loot"){
+    const dr=(roster.dropped||[]).find(dd=>Math.hypot(dd.x-x,dd.y-y)<2);
+    if(!dr)return toast("点地上的枪");
+    plan.acts.push({t:"loot",uid:dr.uid,ap:apUsed,_cost:0});
+    toast("捡枪计划（需路过大招旁 ≤1.4m）");renderCanvas();
+  }else if(planMode==="plant"){
+    if(m.side!=="T")return toast("只有 T 能下包");
+    if(!inSiteC(m.x,m.y))return toast("需站在包点内");
+    plan.acts.push({t:"plant",ap:apUsed,_cost:0});toast("下包（3200AP 引导）");renderCanvas();
+  }else if(planMode==="defuse"){
+    if(m.side!=="CT")return toast("只有 CT 能拆包");
+    if(!roster.bomb||Math.hypot(m.x-roster.bomb.x,m.y-roster.bomb.y)>W.rules.bombR)return toast("需贴近炸弹");
+    plan.acts.push({t:"defuse",ap:apUsed,_cost:0});toast("拆包"+(m.kit?"（有钳 5000AP）":"（10000AP）"));renderCanvas();
+  }
+});
+function refreshAP(){$("apLeft").textContent=apTotal-apUsed;}
+$("undoBtn").onclick=()=>{
+  if(plan.acts.length){const a=plan.acts.pop();apUsed-=a._cost||0;}
+  else if(myPath.length){myPath.pop();plan.apUsedMove=pathAP(myPath);}
+  refreshAP();renderCanvas();
+};
+$("submitPlanBtn").onclick=()=>{
+  if(stage!=="plan"||!me())return;
+  const acts=plan.acts.slice().sort((a,b)=>a.ap-b.ap).map(a=>{const{_cost,...rest}=a;return rest;});
+  if(myPath.length>1)acts.unshift({t:"move",pts:myPath});
+  csSend({type:"plan",plan:{face:plan.face,engage:plan.engage,walk:$("walkChk").checked,acts}});
+  $("submitPlanBtn").disabled=true;
+  $("planHint").textContent="已提交，等待其他玩家…";
+};
+
+/* ================= 渲染 ================= */
+function renderCanvas(){
+  if(!W)return;MAP=W.map;
+  const M=MAP,S=scaleOf();
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#3a3226";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#d8cdb4";
+  M.open.forEach(o=>ctx.fillRect(o[0]*S,o[1]*S,o[2]*S,o[3]*S));
+  M.walls.forEach(w=>{ctx.fillStyle="#8b6f47";ctx.fillRect(w[0]*S,w[1]*S,w[2]*S,w[3]*S);});
+  ctx.strokeStyle="#c0392b";ctx.lineWidth=2;
+  [["A",M.sites.A],["B",M.sites.B]].forEach(([k,s])=>{
+    ctx.strokeRect(s[0]*S,s[1]*S,s[2]*S,s[3]*S);
+    ctx.fillStyle="#c0392b";ctx.font="bold 16px system-ui";ctx.fillText(k,s[0]*S+4,s[1]*S+18);
+  });
+  /* 观众可见性：只能看到自己队 + 全图位置（v1 简化全可见，TODO 战争迷雾） */
+  const disp=animActive?animPos:(roster?roster.players:null);
+  if(disp)disp.forEach(p=>{
+    const px=p.x*S,py=p.y*S;
+    ctx.fillStyle=p.side==="T"?"#c0392b":p.side==="CT"?"#2471a3":"#888";
+    ctx.beginPath();ctx.arc(px,py,6,0,7);ctx.fill();
+    if(p.alive===false){ctx.strokeStyle="#333";ctx.beginPath();ctx.moveTo(px-5,py-5);ctx.lineTo(px+5,py+5);ctx.stroke();}
+    const f=(p.face||0)*Math.PI/180;
+    ctx.strokeStyle="#222";ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+Math.cos(f)*12,py+Math.sin(f)*12);ctx.stroke();
+    ctx.fillStyle="#222";ctx.font="11px system-ui";ctx.fillText(p.name,px+8,py-8);
+    if(p.hp<100){ctx.fillStyle="#0006";ctx.fillRect(px-10,py-16,20,3);ctx.fillStyle="#e06b5a";ctx.fillRect(px-10,py-16,20*Math.max(0,p.hp)/100,3);}
+  });
+  /* 规划 */
+  const m=me();
+  if(m&&stage==="plan"){
+    if(myPath.length){
+      ctx.strokeStyle="#0066cc";ctx.lineWidth=2;ctx.beginPath();
+      ctx.moveTo(m.x*S,m.y*S);myPath.forEach(p=>ctx.lineTo(p[0]*S,p[1]*S));ctx.stroke();
+      myPath.forEach(p=>{ctx.fillStyle="#0066cc";ctx.beginPath();ctx.arc(p[0]*S,p[1]*S,3,0,7);ctx.fill();});
+    }
+    plan.acts.forEach(a=>{
+      if(a.t==="hold"){const r=a.dir*Math.PI/180;ctx.strokeStyle="#b9770e";ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(m.x*S,m.y*S);ctx.lineTo((m.x+Math.cos(r)*5)*S,(m.y+Math.sin(r)*5)*S);ctx.stroke();}
+      if(a.t==="throw"){ctx.strokeStyle="#7d3c98";ctx.beginPath();ctx.arc(a.x*S,a.y*S,8,0,7);ctx.stroke();}
+      if(a.t==="plant"){ctx.fillStyle="#c0392b";ctx.font="12px system-ui";ctx.fillText("💣计划",m.x*S+8,m.y*S+14);}
+      if(a.t==="defuse"){ctx.fillStyle="#2471a3";ctx.font="12px system-ui";ctx.fillText("✂计划",m.x*S+8,m.y*S+14);}
+    });
+  }
+  if(roster&&roster.bomb){ctx.font="16px system-ui";ctx.fillText("💣",roster.bomb.x*S-6,roster.bomb.y*S+5);}
+  (roster?roster.dropped||[]:[]).forEach(d=>{ctx.font="12px system-ui";ctx.fillText("🔫",d.x*S-5,d.y*S+4);});
+  if(animActive)drawAnim(S);
+}
+/* ================= 结算动画 ================= */
+let animActive=false,animStart=0,animDur=0,animEvents=[],animTracks={},animSnap=[],animPhaseAP=5000;
+function onSim(d){
+  animPhaseAP=d.phaseAP||5000;
+  animEvents=d.events||[];
+  animSnap=d.snap||[];
+  /* 轨迹：起点=roster 旧位置，pos 事件，终点=snap */
+  animTracks={};
+  if(roster)roster.players.forEach(p=>{animTracks[p.id]=[{ap:0,x:p.x,y:p.y,face:p.face}];});
+  animEvents.forEach(e=>{
+    if(e.t==="pos"&&animTracks[e.id])animTracks[e.id].push({ap:e.ap,x:e.x,y:e.y,face:e.face});
+  });
+  animSnap.forEach(s=>{
+    if(!animTracks[s.id])animTracks[s.id]=[];
+    animTracks[s.id].push({ap:animPhaseAP,x:s.x,y:s.y,face:s.face});
+  });
+  animDur=(animPhaseAP<=1000?2:5)*1000;
+  animStart=performance.now();
+  animActive=true;
+  /* 结算结束后落位 */
+  setTimeout(()=>{
+    animActive=false;
+    animSnap.forEach(s=>{const p=roster&&roster.players.find(q=>q.id===s.id);if(p){p.x=s.x;p.y=s.y;p.face=s.face;}});
+    renderCanvas();
+  },animDur+100);
+}
+let animPos=null;
+function trackPos(id,ap){
+  const tr=animTracks[id];if(!tr||!tr.length)return null;
+  let cur=tr[0];
+  for(const k of tr){if(k.ap<=ap)cur=k;else break;}
+  let nxt=tr[tr.length-1];
+  for(const k of tr){if(k.ap>ap){nxt=k;break;}}
+  if(nxt.ap===cur.ap)return cur;
+  const t=(ap-cur.ap)/(nxt.ap-cur.ap);
+  return{x:cur.x+(nxt.x-cur.x)*t,y:cur.y+(nxt.y-cur.y)*t,face:nxt.face};
+}
+function drawAnim(S){
+  const el=performance.now()-animStart;
+  const ap=Math.min(animPhaseAP,el/animDur*animPhaseAP);
+  animPos=[];
+  Object.keys(animTracks).forEach(id=>{
+    const p=trackPos(id,ap);
+    const meta=roster.players.find(q=>q.id===id);
+    if(p&&meta)animPos.push({id,x:p.x,y:p.y,face:p.face,side:meta.side,alive:meta.alive,name:meta.name,hp:meta.hp});
+  });
+  /* 效果 */
+  const msPerAp=animDur/animPhaseAP;
+  animEvents.forEach(e=>{
+    const tMs=e.ap*msPerAp,age=el-tMs;
+    if(age<0||age>1600)return;
+    const a=1-age/1600;
+    if(e.t==="shot"){
+      ctx.strokeStyle=e.hit?(e.hs?"#ff2d2d":"#ffb040"):"#888";
+      ctx.globalAlpha=a;ctx.lineWidth=e.hs?2.4:1.6;
+      ctx.beginPath();ctx.moveTo(e.x*S,e.y*S);ctx.lineTo(e.tx*S,e.ty*S);ctx.stroke();
+      if(e.hit){ctx.fillStyle=e.hs?"#ff2d2d":"#ffb040";ctx.font="bold 12px system-ui";ctx.globalAlpha=a;ctx.fillText((e.hs?"爆头-":"-")+e.dmg,e.tx*S+6,e.ty*S-6);}
+      ctx.globalAlpha=1;
+    }else if(e.t==="pop"){
+      if(e.nade==="smoke"){ctx.fillStyle="rgba(180,180,180,.55)";ctx.beginPath();ctx.arc(e.x*S,e.y*S,(e.r||4)*S,0,7);ctx.fill();}
+      else if(e.nade==="fire"){ctx.fillStyle="rgba(255,110,40,.4)";ctx.beginPath();ctx.arc(e.x*S,e.y*S,(e.r||2.6)*S,0,7);ctx.fill();}
+      else{ctx.strokeStyle=e.nade==="flash"?"#fff":"#ff8040";ctx.lineWidth=3;ctx.globalAlpha=a;
+        ctx.beginPath();ctx.arc(e.x*S,e.y*S,10+age/30,0,7);ctx.stroke();ctx.globalAlpha=1;}
+    }else if(e.t==="kill"){
+      ctx.fillStyle="#a00";ctx.font="bold 14px system-ui";ctx.globalAlpha=a;
+      ctx.fillText("☠ "+(e.by||""),e.x*S-14,e.y*S-10);ctx.globalAlpha=1;
+    }else if(e.t==="planted"){
+      ctx.font="16px system-ui";ctx.fillText("💣",e.x*S-6,e.y*S+5);
+      toast("炸弹已安放！");
+    }else if(e.t==="planting"||e.t==="defusing"){
+      ctx.strokeStyle=e.t==="planting"?"#c0392b":"#2471a3";ctx.lineWidth=2;ctx.globalAlpha=a;
+      ctx.beginPath();ctx.arc(e.x*S,e.y*S,12,0,7);ctx.stroke();ctx.globalAlpha=1;
+    }else if(e.t==="hedmg"){
+      ctx.fillStyle="#ff8040";ctx.font="12px system-ui";ctx.globalAlpha=a;
+      ctx.fillText("-"+e.dmg,e.x*S+8,e.y*S-14);ctx.globalAlpha=1;
+    }else if(e.t==="flashed"&&e.id===myId){
+      ctx.fillStyle=`rgba(255,255,255,${.85*a})`;ctx.fillRect(0,0,cv.width,cv.height);
+    }
+  });
+}
+setInterval(()=>{if(animActive)renderCanvas();},50);
+
+window.addEventListener("beforeunload",()=>{csSend({type:"csLeave"});});
+applyLang();
+</script>
+<!-- VersionInformation||版本信息 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">cs · V.T-20261118-0936</div>
+</body>
+</html>

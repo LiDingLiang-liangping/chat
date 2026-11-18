@@ -3,62 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>版本选择</title>
+<title>修仙世界 · 版本选择</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}
-body{
-    background-color:#f5f7fa;
-    min-height:100vh;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:32px;
-}
-h1{
-    font-size:36px;
-    color:#222;
-}
-.btn-group{
-    display:flex;
-    gap:20px;
-    flex-wrap:wrap;
-    justify-content:center;
-}
-button{
-    padding:18px 42px;
-    border:none;
-    border-radius:14px;
-    font-size:26px;
-    color:white;
-    cursor:pointer;
-}
-.btn-new{background-color:#2563eb;}
-.btn-old{background-color:#6b7280;}
-.btn-w0{background-color:#059669;}
+:root{--gold:#d9c08a;--gold2:#f0dfb4;--jade:#79e0bd;--ink:#07110f;--panel:rgba(14,28,24,.92);--line:rgba(217,192,138,.28);--muted:#8ea59c}
+*{box-sizing:border;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 30%,#12241e,var(--ink) 75%);color:#e9e5d8;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.wrap{width:min(860px,100%)}
+.head{text-align:center;margin-bottom:28px}
+.seal{width:44px;height:44px;margin:0 auto 12px;border:1px solid rgba(217,192,138,.6);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:23px;
+  font-family:"Songti SC","STSong",serif;box-shadow:0 0 24px rgba(217,192,138,.14)}
+h1{font-family:"Songti SC","STSong",serif;font-size:30px;font-weight:600;letter-spacing:10px;text-indent:10px;
+  background:linear-gradient(180deg,#f4e7c3,#c9a96a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);font-size:12.5px;letter-spacing:2px;margin-top:8px}
+.room{margin-top:14px;display:inline-block;font-size:12px;color:var(--jade);
+  border:1px solid rgba(121,224,189,.35);background:rgba(121,224,189,.07);
+  padding:4px 14px;border-radius:20px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:720px){.cards{grid-template-columns:1fr}}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:24px 20px 18px;cursor:pointer;transition:.2s;overflow:hidden}
+.card:before{content:"";position:absolute;inset:0;opacity:0;transition:.2s;
+  background:radial-gradient(ellipse at 50% 0%,rgba(217,192,138,.10),transparent 70%)}
+.card:hover{transform:translateY(-4px);border-color:rgba(217,192,138,.55);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.card:hover:before{opacity:1}
+.card .ic{font-size:34px;margin-bottom:10px}
+.card h2{font-family:"Songti SC",serif;font-size:19px;letter-spacing:2px;color:var(--gold2);margin-bottom:4px}
+.card .tag{display:inline-block;font-size:10.5px;letter-spacing:1px;padding:2px 9px;border-radius:12px;margin-bottom:10px}
+.tag.rec{color:#1a1308;background:linear-gradient(180deg,#e2cb99,#c9a96a);font-weight:700}
+.tag.old{color:var(--muted);border:1px solid rgba(255,255,255,.16)}
+.tag.alt{color:var(--jade);border:1px solid rgba(121,224,189,.4)}
+.card p{font-size:12.5px;color:#b9c9c1;line-height:1.8;min-height:66px}
+.card ul{list-style:none;margin:10px 0 14px;display:flex;flex-direction:column;gap:5px}
+.card li{font-size:11.5px;color:var(--muted);padding-left:15px;position:relative}
+.card li:before{content:"◆";position:absolute;left:0;top:1px;font-size:8px;color:var(--gold)}
+.enter{font-size:13px;letter-spacing:2px;color:var(--gold);display:flex;align-items:center;gap:6px}
+.enter:after{content:"→";transition:.2s}
+.card:hover .enter:after{transform:translateX(5px)}
+.foot{text-align:center;margin-top:26px;font-size:11.5px;color:#63776f;line-height:1.8}
 </style>
 </head>
 <body>
-<h1>请选择版本</h1>
-<div class="btn-group">
-<button class="btn-new" id="btnNew">New 新版</button>
-<button class="btn-old" id="btnOld">Old 旧版</button>
-<button class="btn-w0" id="btnW0">World0</button>
+<div class="wrap">
+  <div class="head">
+    <div class="seal">道</div>
+    <h1>修仙世界</h1>
+    <p class="sub">四 环 同 心 · 五 行 灵 根 · 自 由 修 仙</p>
+    <span class="room" id="roomBadge">洞天：—</span>
+  </div>
+  <div class="cards">
+    <div class="card" onclick="go('world_new.html')">
+      <div class="ic">🏔️</div>
+      <h2>环形修仙界 · 新版</h2>
+      <span class="tag rec">推荐</span>
+      <p>性能优化 + 固定步长模拟的最新环形世界。世界更大、新手村更紧凑，魔鬼形态限时、死亡跌落境界。</p>
+      <ul>
+        <li>四环境界门禁 · 五行斗法</li>
+        <li>宗门择峰 · 秘境授法</li>
+        <li>戾气雷劫 · 魔鬼狂暴</li>
+      </ul>
+      <span class="enter">进入</span>
+    </div>
+    <div class="card" onclick="go('world1.html')">
+      <div class="ic">📜</div>
+      <h2>环形修仙界 · 旧版</h2>
+      <span class="tag old">怀旧</span>
+      <p>经典版本的环形世界，地图与数值均为老玩家熟悉的布局。适合对比新版改动或纯情怀局。</p>
+      <ul>
+        <li>原始 4800 世界布局</li>
+        <li>经典坊市与宗门坐标</li>
+        <li>与 11 月 16 日版逐字节一致</li>
+      </ul>
+      <span class="enter">进入</span>
+    </div>
+    <div class="card" onclick="go('world0.html')">
+      <div class="ic">🌌</div>
+      <h2>修仙自由世界</h2>
+      <span class="tag alt">另一款</span>
+      <p>平行开发的另一款修仙游戏，玩法与环形界不同。想换个体系体验修真之道？选它。</p>
+      <ul>
+        <li>独立玩法与数值体系</li>
+        <li>同样支持多人同修</li>
+      </ul>
+      <span class="enter">进入</span>
+    </div>
+  </div>
+  <p class="foot">同一洞天的道友请选同一版本，方可相遇 · 房间号自动带入所选版本</p>
 </div>
-
 <script>
-// 获取当前页面的查询字符串（?room=World%201&name=1）
-const search = window.location.search;
-
-document.getElementById('btnNew').onclick = ()=>{
-    location.href = "world_new.html" + search;
-}
-document.getElementById('btnOld').onclick = ()=>{
-    location.href = "world1.html" + search;
-}
-document.getElementById('btnW0').onclick = ()=>{
-    location.href = "world0.html" + search;
-}
+const q=window.location.search;
+const room=new URLSearchParams(q).get("room")||"MainRoom-world";
+document.getElementById("roomBadge").textContent="洞天："+room;
+function go(f){location.href=f+q;}
 </script>
+<!-- VersionInformation||版本信息 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">world · V.T-20261117-2058</div>
 </body>
 </html>

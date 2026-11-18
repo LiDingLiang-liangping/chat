@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五子棋</title>
+<title data-en="Gomoku">五子棋</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23deb887'/%3E%3Cpath d='M6 32h52M32 6v52M10 10l44 44M54 10 10 54' stroke='%237c5a2e' stroke-width='1.5'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23222'/%3E%3C/svg%3E">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -80,64 +80,80 @@ canvas{border:2px solid #333;background:#deb887;cursor:pointer;display:block;wid
 </style>
 </head>
 <body>
-<div class="title">五子棋</div>
-<div class="sub">进入在线大厅找到对手，邀请对方对局；同意后进入独立棋盘房间，右下角可实时聊天。【主机掉线自动继任】</div>
+<div class="title" data-en="Gomoku">五子棋</div>
+<div class="sub"><span data-en="Enter the lobby, invite an opponent; after accepting you play in a private board room with live chat. [Auto host succession]">进入在线大厅找到对手，邀请对方对局；同意后进入独立棋盘房间，右下角可实时聊天。【主机掉线自动继任】</span></div>
 <!-- ===== 大厅视图 ===== -->
 <section id="lobbyView" class="view active">
   <div id="ui">
-    <input id="nameInput" type="text" maxlength="14" placeholder="输入你的昵称" autocomplete="off">
-    <button id="enterBtn" class="primary">进入大厅</button>
-    <button id="notifyBtn" class="ghost">开启桌面通知</button>
+    <input id="nameInput" type="text" maxlength="14" placeholder="输入你的昵称" data-enph="Your nickname" autocomplete="off">
+    <button id="enterBtn" class="primary" data-en="Enter lobby">进入大厅</button>
+    <button id="notifyBtn" class="ghost" data-en="Enable notifications">开启桌面通知</button>
+    <button id="goLangBtn" class="ghost">EN</button>
     <span class="notify-tip">💡 如果没有弹出允许通知，请点击浏览器搜索栏右侧铃铛标志</span>
-    <span id="status">等待操作</span>
+    <span id="status" data-en="Waiting">等待操作</span>
   </div>
   <div class="panel">
-    <div class="online-head">在线玩家 <span id="onlineCount" class="count">(0)</span></div>
+    <div class="online-head"><span data-en="Online players">在线玩家</span> <span id="onlineCount" class="count">(0)</span></div>
+    <div id="goAdminBar" style="display:none;gap:8px;margin-bottom:6px;align-items:center"><button id="goKickBtn" class="ghost" data-en="Kick selected">Kick 所选</button><button id="goCloseBtn" class="danger" data-en="Force close lobby">强制关闭大厅</button></div>
     <ul id="userList" class="user-list">
-      <li class="empty-tip">大厅暂时空无一人，稍等片刻，或邀请朋友加入。</li>
+      <li class="empty-tip" data-en="Lobby is empty — wait or invite friends.">大厅暂时空无一人，稍等片刻，或邀请朋友加入。</li>
     </ul>
   </div>
-  <div id="lobbyStatus" class="hint" style="margin-top:8px">尚未进入大厅</div>
+  <div id="lobbyStatus" class="hint" style="margin-top:8px" data-en="Not in the lobby">尚未进入大厅</div>
 </section>
 <!-- ===== 对局视图 ===== -->
 <section id="gameView" class="view">
   <div class="game-bar">
-    <span>对手：<span id="oppoName" class="oppo">等待对手</span></span>
-    <span id="turnInd" class="turn-ind black">等待对手进入…</span>
+    <span><span data-en="Opponent: ">对手：</span><span id="oppoName" class="oppo" data-en="Waiting">等待对手</span></span>
+    <span id="turnInd" class="turn-ind black" data-en="Waiting for opponent…">等待对手进入…</span>
   </div>
   <canvas id="board"></canvas>
   <div class="game-ops">
-    <button id="resignBtn" class="danger">认输</button>
-    <button id="restartBtn" class="ghost">再来一局</button>
-    <button id="backBtn" class="ghost">返回大厅</button>
+    <button id="resignBtn" class="danger" data-en="Resign">认输</button>
+    <button id="restartBtn" class="ghost" data-en="Rematch">再来一局</button>
+    <button id="backBtn" class="ghost" data-en="Back to lobby">返回大厅</button>
   </div>
 </section>
 <!-- ===== 聊天（右下角浮动） ===== -->
 <div id="chatFloat" class="chat-float" style="display:none">
   <div class="chat-head">
-    <span class="t">对局聊天</span>
+    <span class="t" data-en="Game chat">对局聊天</span>
     <span class="mini" id="chatOpp"></span>
     <button id="chatClose" class="chat-close" aria-label="收起聊天">×</button>
   </div>
   <div id="chatBody" class="chat-body"></div>
   <div class="chat-input">
     <input id="chatInput" type="text" maxlength="200" placeholder="发送消息…" autocomplete="off">
-    <button id="chatSend" class="primary">发送</button>
+    <button id="chatSend" class="primary" data-en="Send">发送</button>
   </div>
 </div>
 <!-- ===== 邀请弹窗 ===== -->
 <div id="inviteMask" class="modal-mask">
   <div class="modal">
     <div class="mt"><span id="invFrom"></span></div>
-    <div class="md">邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（你先手执黑）。</div>
+    <div class="md" data-en="invites you to a Gomoku match. Accept to enter a private board room (you play Black first).">邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（你先手执黑）。</div>
     <div class="mbtns">
-      <button id="rejectBtn" class="ghost">拒绝</button>
-      <button id="acceptBtn" class="primary">接受</button>
+      <button id="rejectBtn" class="ghost" data-en="Reject">拒绝</button>
+      <button id="acceptBtn" class="primary" data-en="Accept">接受</button>
     </div>
   </div>
 </div>
 <div id="toastWrap" class="toast-wrap"></div>
-<script src="https://fastly.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js">$("goKickBtn").onclick=()=>{
+  const ns=[...document.querySelectorAll(".gokick:checked")].map(c=>c.value);
+  if(!ns.length)return;
+  if(amLobbyHost)ns.forEach(doKick);
+  else ns.forEach(n=>lobbySend({type:"adminKick",name:n}));
+};
+$("goCloseBtn").onclick=()=>{
+  if(!confirm("确定强制关闭大厅？所有人将被断开。"))return;
+  if(amLobbyHost)doClose();
+  else lobbySend({type:"adminClose"});
+};
+$("goLangBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";localStorage.setItem("go_lang",LANG);applyLang();};
+applyLang();
+if(_urlName){ nameInput.value=_urlName; setTimeout(()=>{ try{ if(!inLobby) enterLobby(); }catch(e){} },400); }
+</script>
 <script>
 (function(){
 "use strict";
@@ -168,13 +184,36 @@ myClientSeq = Number(myClientSeq);
 /* ================= 工具 ================= */
 const $ = id => document.getElementById(id);
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace( />/g,"&gt;").replace(/"/g,"&quot;"); }
-function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; $("toastWrap").appendChild(t); setTimeout(()=>{ t.remove(); },2800); }
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=T(msg); $("toastWrap").appendChild(t); setTimeout(()=>{ t.remove(); },2800); }
+/* ===== 中英文 ===== */
+let LANG=localStorage.getItem("go_lang")||"zh";
+const GOTT=[
+ ["进入大厅","Enter lobby"],["开启桌面通知","Enable notifications"],["等待操作","Waiting"],["在线玩家","Online players"],
+ ["大厅暂时空无一人，稍等片刻，或邀请朋友加入。","Lobby is empty — wait or invite friends."],["尚未进入大厅","Not in the lobby"],
+ ["对手：","Opponent: "],["等待对手","Waiting"],["等待对手进入…","Waiting for opponent…"],["认输","Resign"],
+ ["再来一局","Rematch"],["返回大厅","Back to lobby"],["对局聊天","Game chat"],["发送","Send"],["拒绝","Reject"],["接受","Accept"],
+ ["邀请你进行一局五子棋对局。接受后将进入独立的棋盘房间（你先手执黑）。","invites you to a Gomoku match. Accept to enter a private board room (you play Black first)."],
+ ["输入你的昵称","Your nickname"],["邀请对局","Invite"],["（对局中）","(in game)"],["（我）","(me)"],["（你）","(you)"],["轮到你","Your turn"],
+ ["对方思考中","Opponent thinking"],["黑","Black"],["白","White"],["对局开始，你执黑先行","Match starts — you are Black"],
+ ["对局开始，你执白后手","Match starts — you are White"],["已接受 ","Accepted "],["拒绝了你的邀请","rejected your invite"],
+ ["被管理员移出对话","was removed by an admin"],["此对话已被管理员关闭","this room was closed by an admin"],
+ ["你已被管理员移出对话","you were removed by an admin"],["对话已关闭","Room closed"],["五子棋","Gomoku"],["大厅","lobby"],["秒","s"]
+];
+function T(x){ if(LANG!=="en"||x==null)return x; let r=String(x); for(const [a,b] of GOTT)r=r.split(a).join(b); return r; }
+function applyLang(){
+  document.querySelectorAll("[data-en]").forEach(el=>{ if(!el.dataset.zh)el.dataset.zh=el.textContent; el.textContent=LANG==="en"?el.dataset.en:el.dataset.zh; });
+  document.querySelectorAll("[data-enph]").forEach(el=>{ if(!el.dataset.zhph)el.dataset.zhph=el.placeholder; el.placeholder=LANG==="en"?el.dataset.enph:el.dataset.zhph; });
+  const lb=$("goLangBtn"); if(lb)lb.textContent=LANG==="en"?"中":"EN";
+}
+let isAdmin=sessionStorage.getItem("chat_admin")==="1";
 let notifOk=false;
 function notify(title,body){
   if(notifOk && "Notification" in window && Notification.permission==="granted"){ try{ new Notification(title,{body}); }catch(e){} }
 }
 /* ================= 状态 ================= */
-const LOBBY_ID = "GoLobby-2026";
+const _qp=new URLSearchParams(location.search);
+const LOBBY_ID = (_qp.get("room")||"GoLobby") + "-go";
+const _urlName=(_qp.get("name")||"").trim();
 let myName="", myPeerId="";
 let lobbyPeer=null, lobbyConn=null, amLobbyHost=false;
 let lobbyConns = new Map();           // 主机：id -> conn
@@ -287,8 +326,38 @@ function becomeHost(){
   });
 }
 
+function doKick(name){
+  const u=onlineUsers.find(x=>x.name===name);
+  if(!u)return;
+  const c=lobbyConns.get(u.id);
+  if(c){try{c.send({type:"kickedByAdmin"});}catch(e){} c.close();}
+  try{removeUser(u.id);}catch(e){}
+  broadcastLobby(); renderLobby();
+  toast(`【${name}】被管理员移出对话`);
+}
+function doClose(){
+  toast("此对话已被管理员关闭");
+  lobbyConns.forEach(c=>{try{c.send({type:"roomClosed"});}catch(e){}});
+  setTimeout(()=>{
+    lobbyConns.forEach(c=>{try{c.close();}catch(e){}});
+    try{lobbyPeer.destroy();}catch(e){}
+    lobbyConns=new Map(); onlineUsers=[]; amLobbyHost=false; inLobby=false;
+    renderLobby(); $("lobbyStatus").textContent="对话已关闭";
+  },2000);
+}
+function forceLeave(){
+  inLobby=false; amLobbyHost=false;
+  try{lobbyPeer.destroy();}catch(e){}
+  try{lobbyConns.forEach(c=>c.close());}catch(e){}
+  lobbyConns=new Map(); onlineUsers=[]; myPeerId=null;
+  renderLobby(); $("lobbyStatus").textContent="已断开"; enterBtn.disabled=false;
+}
 function handleLobbyMsg(d, fromId){
   switch(d.type){
+    case "adminKick": doKick(d.name); break;
+    case "adminClose": doClose(); break;
+    case "kickedByAdmin": toast("你已被管理员移出对话"); forceLeave(); break;
+    case "roomClosed": toast("此对话已被管理员关闭"); forceLeave(); break;
     case "join":
       if(!onlineUsers.find(u=>u.id===d.id)){ onlineUsers.push({id:d.id, name:d.name, seq:d.seq}); }
       broadcastLobby();
@@ -349,6 +418,16 @@ function renderLobby(){
     }
     ul.appendChild(li);
   });
+  if(isAdmin){
+    $("goAdminBar").style.display="flex";
+    document.querySelectorAll("#userList .user-item").forEach((li,idx)=>{
+      const u=onlineUsers[idx]; if(!u||u.id===myPeerId)return;
+      if(li.querySelector(".gokick"))return;
+      const cb=document.createElement("input");
+      cb.type="checkbox";cb.className="gokick";cb.value=u.name;cb.style.marginLeft="6px";
+      li.appendChild(cb);
+    });
+  }
 }
 /* ================= 邀请流程 ================= */
 function sendInvite(target){
@@ -662,6 +741,22 @@ const qp=new URLSearchParams(location.search);
 const qn=qp.get("name");
 if(qn) $("nameInput").value=qn;
 })();
+$("goKickBtn").onclick=()=>{
+  const ns=[...document.querySelectorAll(".gokick:checked")].map(c=>c.value);
+  if(!ns.length)return;
+  if(amLobbyHost)ns.forEach(doKick);
+  else ns.forEach(n=>lobbySend({type:"adminKick",name:n}));
+};
+$("goCloseBtn").onclick=()=>{
+  if(!confirm("确定强制关闭大厅？所有人将被断开。"))return;
+  if(amLobbyHost)doClose();
+  else lobbySend({type:"adminClose"});
+};
+$("goLangBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";localStorage.setItem("go_lang",LANG);applyLang();};
+applyLang();
+if(_urlName){ nameInput.value=_urlName; setTimeout(()=>{ try{ if(!inLobby) enterLobby(); }catch(e){} },400); }
 </script>
+<!-- VersionInformation||版本信息 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">go · V.T-20261117-2058</div>
 </body>
 </html>

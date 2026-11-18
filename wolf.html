@@ -77,10 +77,11 @@ small.mut{color:#999;font-size:12px}
   <div class="left">
     <div id="hostBanner">⚠️ 狼人杀主机已掉线，本局无法继续。请回 main 房间重新开启。</div>
     <div class="card">
-      <h3>狼人杀房间</h3>
+      <h3 data-en="Werewolf">狼人杀房间</h3>
       <div class="topline">
-        <span>房间：<b id="roomLabel">-</b></span>
-        <span id="myState" class="tag">连接中…</span>
+        <span><span data-en="Room: ">房间：</span><b id="roomLabel">-</b></span>
+        <span id="myState" class="tag" data-en="Connecting…">连接中…</span>
+        <button id="wolfLangBtn" style="margin-left:auto">EN</button>
         <span id="status" class="mut"></span>
       </div>
       <div id="setupRow" class="topline" style="margin-top:8px;display:none">
@@ -91,51 +92,56 @@ small.mut{color:#999;font-size:12px}
       <div id="hostCtrl" style="display:none">
         <div class="host-ctrl">
           <label style="font-size:14px"><input type="checkbox" id="participateChk" checked> 本局我参与</label>
-          <button id="startBtn" class="primary">开始游戏</button>
+          <button id="startBtn" class="primary" data-en="Start">开始游戏</button>
           <button id="pauseBtn" style="display:none">⏸ 暂停</button>
-          <button id="endBtn" class="danger" style="display:none">提前结束</button>
-          <button id="resetBtn" style="display:none">🔄 再来一局</button>
+          <button id="endBtn" class="danger" style="display:none" data-en="End now">提前结束</button>
+          <button id="resetBtn" style="display:none" data-en="🔄 Restart">🔄 再来一局</button>
         </div>
         <div class="host-ctrl" id="transferRow" style="display:none;margin-top:6px">
-          <span style="font-size:13px">主机转让给</span>
+          <span style="font-size:13px" data-en="Transfer host to">主机转让给</span>
           <select id="transferSel"></select>
-          <button id="transferBtn">确认转让</button>
+          <button id="transferBtn" data-en="Confirm">确认转让</button>
         </div>
-        <div class="mut">（3秒确认期内不可改参与）</div>
+        <div class="host-ctrl" id="wolfAdminBar" style="display:none;margin-top:6px">
+          <span style="font-size:13px">🛡</span>
+          <button id="wolfKickBtn" data-en="Kick selected">Kick 所选</button>
+          <button id="wolfCloseBtn" class="danger" data-en="Force close">强制关闭房间</button>
+        </div>
+        <div class="mut" data-en="(locked once you start)">（3秒确认期内不可改参与）</div>
       </div>
 
       <div style="margin-top:8px">
         <details open>
-          <summary>本局玩家（<span id="pcount">0</span>）</summary>
+          <summary><span data-en="Players">本局玩家</span>（<span id="pcount">0</span>）</summary>
           <ul id="players" class="plist"></ul>
         </details>
         <details open style="margin-top:6px">
-          <summary>观察者（<span id="ocount">0</span>）</summary>
+          <summary><span data-en="Spectators">观察者</span>（<span id="ocount">0</span>）</summary>
           <ul id="observers" class="plist"></ul>
         </details>
       </div>
     </div>
 
     <div class="card" id="statsCard" style="display:none">
-      <h3>局势</h3>
+      <h3 data-en="Status">局势</h3>
       <div id="stats"></div>
       <div id="deadList"></div>
     </div>
 
     <div class="card" id="roleCard" style="display:none">
-      <div>你的身份：<span class="role-name" id="myRoleName"></span></div>
+      <div><span data-en="Your role: ">你的身份：</span><span class="role-name" id="myRoleName"></span></div>
       <div class="role-tip" id="roleTip"></div>
       <div class="role-tip" id="teamMate" style="color:#333"></div>
     </div>
 
     <div class="card" id="godCard" style="display:none">
-      <h3>👁 全局信息（主机已公开）</h3>
+      <h3><span data-en="God view (opened by host)">👁 全局信息（主机已公开）</span></h3>
       <ul id="godList" class="plist"></ul>
       <div id="godLog"></div>
     </div>
 
     <div class="card" id="revealCard">
-      <h3>🏁 结算与复盘</h3>
+      <h3 data-en="Result & Replay">🏁 结算与复盘</h3>
       <div id="revealText" style="font-weight:bold;margin-bottom:6px"></div>
       <div id="revealList"></div>
       <div id="godLogR"></div>
@@ -144,23 +150,19 @@ small.mut{color:#999;font-size:12px}
 
   <div class="right">
     <div id="confirmBar">
-      <b>主机已开启本局！</b> <span id="confirmCd">3</span> 秒内点击参加，否则本局为旁观。
-      <div style="margin-top:6px"><button id="joinConfirmBtn" class="primary">✋ 参加本局</button></div>
+      <b data-en="Host opened this game!">主机已开启本局！</b> <span id="confirmCd">3</span> <span data-en="s to join, else spectate.">秒内点击参加，否则本局为旁观。</span>
+      <div style="margin-top:6px"><button id="joinConfirmBtn" class="primary" data-en="✋ Join">✋ 参加本局</button></div>
     </div>
     <div class="card">
-      <div id="phaseTitle">大厅</div>
+      <div id="phaseTitle" data-en="Lobby">大厅</div>
       <div id="timer"></div>
       <div id="actionArea"><div class="action-label">等待主机开始…</div></div>
     </div>
     <div class="card" style="display:flex;flex-direction:column">
-      <div id="chatTabs">
-        <button id="tabPlayer" class="on">玩家</button>
-        <button id="tabObs">旁观</button>
-      </div>
       <div id="chatList"></div>
       <div id="chatSendRow">
-        <input id="chatInput" placeholder="发言…">
-        <button id="chatSend">发送</button>
+        <input id="chatInput" placeholder="发言…" data-enph="Message…">
+        <button id="chatSend" data-en="Send">发送</button>
       </div>
       <div id="speakProg" class="mut" style="margin-top:4px"></div>
     </div>
@@ -168,40 +170,164 @@ small.mut{color:#999;font-size:12px}
 </div>
 
 
-<button id="setFloatBtn">⚙️ 设置</button>
+<button id="setFloatBtn" data-en="⚙️ Settings">⚙️ 设置</button>
 <div id="setPanel">
-  <div class="sp-head"><span>⚙️ 游戏设置 <span id="setWho" class="mut"></span></span><button id="setClose">×</button></div>
+  <div class="sp-head"><span><span data-en="⚙️ Game Settings">⚙️ 游戏设置</span> <span id="setWho" class="mut"></span></span><button id="setClose">×</button></div>
   <div id="setGrid">
-    <label>发言时长 <input type="number" id="speakTimeInput" value="60" min="15" max="300" style="width:64px"> 秒</label>
-    <label>单次加时 <input type="number" id="extendTimeInput" value="30" min="15" max="300" style="width:64px"> 秒（≥15）</label>
-    <label>加时上限 <input type="number" id="extendMaxInput" value="3" min="0" max="9" style="width:56px"> 次（0=无加时）</label>
-    <label>参加确认时长 <input type="number" id="confirmSecInput" value="10" min="3" max="30" style="width:56px"> 秒</label>
-    <label style="line-height:1.5"><input type="checkbox" id="revealChk"> 对观察者公开全局信息<br><small class="mut">（全员身份 + 夜晚行动，默认关闭）</small></label>
+    <label><span data-en="Speak time ">发言时长</span> <input type="number" id="speakTimeInput" value="60" min="15" max="300" style="width:64px"> <span data-en="s">秒</span></label>
+    <label><span data-en="Overtime ">单次加时</span> <input type="number" id="extendTimeInput" value="30" min="15" max="300" style="width:64px"> <span data-en="s (≥15)">秒（≥15）</span></label>
+    <label><span data-en="OT limit ">加时上限</span> <input type="number" id="extendMaxInput" value="3" min="0" max="9" style="width:56px"> <span data-en="x (0=none)">次（0=无加时）</span></label>
+    <label><span data-en="Confirm time ">参加确认时长</span> <input type="number" id="confirmSecInput" value="10" min="3" max="30" style="width:56px"> <span data-en="s">秒</span></label>
+    <label style="line-height:1.5"><input type="checkbox" id="revealChk"> <span data-en="Reveal all to spectators">对观察者公开全局信息</span><br><small class="mut" data-en="(roles + night actions, off by default)">（全员身份 + 夜晚行动，默认关闭）</small></label>
+    <div style="border-top:1px solid #eee;padding-top:8px">
+      <div style="font-weight:bold;margin-bottom:4px" data-en="Role setup (editable counts)">本局身份配置（数量可改，自由搭配）</div>
+      <div id="roleGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px"></div>
+      <small class="mut" data-en="Need ≥1 wolf & ≥1 good; good ≥ wolves+2; extras undealt, shortage filled by villagers.">规则：至少 1 狼 + 1 好人；好人 ≥ 狼+2；人不够时随机不发多余身份，人比身份多自动补村民。</small>
+    </div>
   </div>
 </div>
 <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <script>
 // ================= 常量 =================
-const ROLE_NAMES={wolf:"🐺狼人",villager:"👤村民",seer:"🔮预言家",witch:"🧪女巫",hunter:"🔫猎人"};
-const CAMP={wolf:"wolf",villager:"good",seer:"good",witch:"good",hunter:"good"};
+const ROLE_NAMES={wolf:"🐺狼人",whitewolf:"👑白狼王",villager:"👤村民",seer:"🔮预言家",witch:"🧪女巫",hunter:"🔫猎人",guard:"🛡守卫",idiot:"🃏白痴"};
+const CAMP={wolf:"wolf",whitewolf:"wolf",villager:"good",seer:"good",witch:"good",hunter:"good",guard:"good",idiot:"good"};
 const ROLE_TIPS={
   wolf:"每晚与狼队友一起行动，多数决选择击杀目标。狼人彼此认识。",
+  whitewolf:"狼人阵营，与狼队互认、共同刀人。夜里可选择自爆并带走一人，当晚直接结算（整局一次）。",
   villager:"没有特殊技能，白天靠发言与投票找出狼人。",
   seer:"每晚可查验一名玩家（本局最多3次），得知对方是狼人还是好人。",
   witch:"解药、毒药各一瓶。夜晚可救回被杀者，或毒死一名玩家，也可都不用。",
-  hunter:"被刀杀或被投票放逐时可开枪带走一名玩家（被毒不能开枪）。"
+  hunter:"被刀杀或被投票放逐时可开枪带走一名玩家（被毒不能开枪）。",
+  guard:"每晚守护一名玩家，被守者免疫狼刀（不能连续两晚守同一人，可空守）。",
+  idiot:"被投票放逐时翻牌免死，之后可发言但失去投票权；再次被投出则死亡。"
 };
 const SEER_MAX_CHECKS=3;
-function buildRoles(n){
-  if(n===5)return["wolf","villager","villager","seer","witch"];
-  if(n===6)return["wolf","wolf","villager","villager","seer","witch"];
-  if(n===7)return["wolf","wolf","villager","villager","villager","seer","witch"];
-  if(n===8)return["wolf","wolf","villager","villager","villager","seer","witch","hunter"];
-  if(n===9)return["wolf","wolf","wolf","villager","villager","villager","seer","witch","hunter"];
-  if(n===10)return["wolf","wolf","wolf","villager","villager","villager","villager","seer","witch","hunter"];
-  return[];
+// 身份由主机在设置面板自由搭配（每个身份可多个）；发牌时自动补村民、保证 ≥1 狼且 好人≥狼+2
+function dealRoles(n){
+  const cfg=settings.roleConfig;
+  let pool=[];
+  for(const r in cfg)for(let i=0;i<cfg[r];i++)pool.push(r);
+  while(pool.length<n)pool.push("villager");
+  pool=shuffle(pool);
+  const dealt=pool.slice(0,n);
+  const rest=pool.slice(n);
+  const wOf=a=>a.filter(r=>CAMP[r]==="wolf").length;
+  const gOf=a=>a.filter(r=>CAMP[r]==="good").length;
+  function swapOut(idxIn,roleOut){
+    for(let i=0;i<rest.length;i++){
+      if(roleOut==="villager"&&rest[i]==="villager")continue;
+      dealt[idxIn]=rest[i];rest[i]=roleOut;return true;
+    }
+    return false;
+  }
+  let guard=0;
+  while(guard++<50){
+    let w=wOf(dealt),g=gOf(dealt),fixed=false;
+    if(w===0){
+      const i=dealt.findIndex(r=>CAMP[r]==="good"&&r!=="villager");
+      const j=i>=0?i:dealt.findIndex(r=>r==="villager");
+      if(j>=0&&swapOut(j,dealt[j]))fixed=true;
+    }
+    w=wOf(dealt);g=gOf(dealt);
+    if(g<w+2){
+      const i=dealt.findIndex(r=>CAMP[r]==="wolf");
+      if(i>=0&&swapOut(i,"wolf"))fixed=true;
+    }
+    if(!fixed)break;
+  }
+  return dealt;
+}
+function validateConfig(n){
+  const roles=dealRoles(n);
+  const w=roles.filter(r=>CAMP[r]==="wolf").length;
+  const g=roles.filter(r=>CAMP[r]==="good").length;
+  if(w<1)return"身份配置无效：至少需要 1 个狼人阵营身份";
+  if(g<1)return"身份配置无效：至少需要 1 个好人阵营身份";
+  if(g<w+2)return`阵营不平衡：${n}人局 ${w}狼需要至少 ${w+2} 个好人（当前配置只有 ${g} 个好人身份，请增加好人身份或村民数量）`;
+  return null;
 }
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+// ===== 中英文 =====
+let LANG=localStorage.getItem("wolf_lang")||"zh";
+const ROLE_NAMES_ZH={wolf:"🐺狼人",whitewolf:"👑白狼王",villager:"👤村民",seer:"🔮预言家",witch:"🧪女巫",hunter:"🔫猎人",guard:"🛡守卫",idiot:"🃏白痴"};
+const ROLE_NAMES_EN={wolf:"🐺Werewolf",whitewolf:"👑White Wolf King",villager:"👤Villager",seer:"🔮Seer",witch:"🧪Witch",hunter:"🔫Hunter",guard:"🛡Guard",idiot:"🃏Idiot"};
+const ROLE_TIPS_ZH={
+  wolf:"每晚与狼队友一起行动，多数决选择击杀目标。狼人彼此认识。",
+  whitewolf:"狼人阵营，与狼队互认、共同刀人。夜里可选择自爆并带走一人，当晚直接结算（整局一次）。",
+  villager:"没有特殊技能，白天靠发言与投票找出狼人。",
+  seer:"每晚可查验一名玩家（本局最多3次），得知对方是狼人还是好人。",
+  witch:"解药、毒药各一瓶。夜晚可救回被杀者，或毒死一名玩家，也可都不用。",
+  hunter:"被刀杀或被投票放逐时可开枪带走一名玩家（被毒不能开枪）。",
+  guard:"每晚守护一名玩家，被守者免疫狼刀（不能连续两晚守同一人，可空守）。",
+  idiot:"被投票放逐时翻牌免死，之后可发言但失去投票权；再次被投出则死亡。"
+};
+const ROLE_TIPS_EN={
+  wolf:"Each night, vote with your wolf team to kill. Wolves know each other.",
+  whitewolf:"Wolf camp. Knows the pack and votes kills. Once per game: self-destruct at night to take one down, night ends immediately.",
+  villager:"No special skill. Find wolves by day talk and votes.",
+  seer:"Check one player each night (max 3 this game) to learn wolf or good.",
+  witch:"One antidote and one poison. Save the wolf-target or poison someone, or skip.",
+  hunter:"If killed by wolves or exiled, may shoot one player (not if poisoned).",
+  guard:"Protect one player each night from the wolf kill (not the same twice in a row, may protect none).",
+  idiot:"First time exiled: reveal and survive, but lose voting rights. Exiled again: dies."
+};
+const TT=[
+ ["确认参加","Confirm to join"],["狼人行动","Werewolves"],["预言家行动","Seer"],["守卫行动","Guard"],["女巫行动","Witch"],
+ ["投票放逐","Exile vote"],["自由讨论","Discussion"],["讨论加时","Overtime"],["猎人开枪","Hunter's shot"],["大厅","Lobby"],
+ ["已说完","done"],["我说完了","I'm done"],["击杀目标","kill target"],["空刀","no kill"],["选择守护对象","Choose protect target"],
+ ["上夜守的是","Last night protected"],["空守","protect none"],["上夜","last nt"],["你的狼队友","Your wolf teammates"],["狼队友","wolf teammates"],
+ ["使用解药救人","Use antidote to save"],["不使用解药","Skip antidote"],["不用毒药","Skip poison"],["使用解药","used antidote"],["未用解药","skipped antidote"],
+ ["下毒","poisoned"],["未用毒药","skipped poison"],["空放","no target"],["今晚被杀者","Killed tonight"],["空刀（无人死亡）","No kill"],
+ ["无法使用解药","cannot use antidote"],["解药已决定","antidote decided"],["毒药已决定","poison decided"],["解药已用完","antidote used up"],["毒药已用完","poison used up"],
+ ["本局查验次数已用完","no checks left"],["查验一名玩家","Check a player"],["已提交击杀目标","kill target submitted"],
+ ["等待其他狼人","waiting for other wolves"],["狼人行动中","Werewolves acting"],["预言家行动中","Seer acting"],["守卫行动中","Guard acting"],["女巫行动中","Witch acting"],
+ ["今晚已完成守护","protection set tonight"],["今晚已完成查验","check done tonight"],["讨论中","discussing"],["第","Day "],["天"," "],
+ ["白天","day"],["夜晚","night"],["已投票给","voted for"],["弃票","abstain"],["开始投票","Voting begins"],["仍可聊天","chat allowed"],
+ ["全员投完自动结算","auto-resolve when all voted"],["平票","tie"],["无人被放逐","no one exiled"],["被投票放逐","exiled"],["翻牌免死","reveals Idiot and survives"],
+ ["之后无投票权","loses voting rights"],["无投票权","cannot vote"],["你是白痴（已翻牌）","You are the Idiot (revealed)"],["已翻牌","revealed"],
+ ["选择开枪目标","Choose shoot target"],["不开枪","don't shoot"],["已开枪","shot"],["未开枪","did not shoot"],["自爆","self-destruct"],
+ ["被白狼王带走","taken by White Wolf King"],["当晚直接结算","night resolves immediately"],["存活","alive"],["死亡","dead"],["被刀","killed by wolves"],
+ ["被毒","poisoned"],["被猎人带走","shot by Hunter"],["断线","disconnected"],["按死亡处理","counts as dead"],["平安夜","peaceful night"],
+ ["天亮了","Dawn"],["昨晚","last night"],["降临","falls"],["发言加时","speaking overtime"],["需","need"],["说完","done"],
+ ["进入投票","go to vote"],["直接进投票","straight to vote"],["无加时","no overtime"],["秒","s"],["行动","action"],["发言","speak"],
+ ["主机暂停了游戏","host paused"],["游戏继续","game resumed"],["已重置，等待下一局","reset, waiting next game"],["游戏开始","Game started"],["人参加","players"],
+ ["加入了房间","joined the room"],["进入了旁观","is spectating"],["被管理员移出对话","was removed by an admin"],["此对话已被管理员关闭","this room was closed by an admin"],
+ ["你已被管理员移出对话","you were removed by an admin"],["主机掉线","host disconnected"],["你将成为新主机","you will be the new host"],
+ ["主机已转让给你","host transferred to you"],["正在接管","taking over"],["主机转让中","host migrating"],["自动重连","auto-reconnecting"],
+ ["重连失败","reconnect failed"],["请刷新页面","please refresh"],["已让出主机","host released"],["本页可关闭","you may close this page"],
+ ["等待旧主机释放房间","waiting for old host to release the room"],["成为主机失败","failed to become host"],["ID一直被占用","ID still occupied"],
+ ["不足","only"],["人，取消开局","players, cancelling game"],["本局确认参加仅","confirmed"],["身份配置无效","invalid role config"],["至少需要","need at least"],
+ ["个狼人阵营身份","wolf-camp role"],["个好人阵营身份","good-camp role"],["阵营不平衡","unbalanced camps"],["狼需要至少","wolves need at least"],
+ ["个好人（当前配置只有","good (config has only"],["个好人身份，请增加好人身份或村民数量）","good roles; add more good roles or villagers)"],
+ ["指定击杀","targeted"],["守护了","protected"],["查验","checked"],["投给","voted"],["白天放逐","day exile"],["白痴翻牌免死","Idiot revealed, survived"],
+ ["最终身份","Final roles"],["游戏结束","Game over"],["狼人阵营胜利","WOLF CAMP WINS"],["好人阵营胜利","GOOD CAMP WINS"],
+ ["游戏结束（主机提前结束）","game ended by host"],["等待主机开始","waiting for host"],["旁观中","spectating"],["你已出局","you are out"],
+ ["游戏已结束","game over"],["已暂停","paused"],["已出局","out"],["等待","waiting"],["小时","h"],
+ ["局势","Status"],["阵亡","Fallen"],["本局玩家","Players"],["观察者","Spectators"],["狼阵营","Wolves"],["好阵营","Good"],
+ ["全局信息","God view"],["主机已公开","opened by host"],["结算与复盘","Result & Replay"],["你的身份","Your role"],["设置","Settings"],
+ ["游戏设置","Game Settings"],["你主机，可修改","(you are host, editable)"],["仅主机可修改","(host only)"],["本局身份配置（数量可改，自由搭配）","Role setup (editable counts)"],
+ ["规则：至少 1 狼 + 1 好人；好人 ≥ 狼+2；人不够时随机不发多余身份，人比身份多自动补村民。","Need ≥1 wolf & ≥1 good; good ≥ wolves+2; extras undealt, shortage filled by villagers."],
+ ["发言时长","Speak time"],["单次加时","Overtime "],["次","x"],["0=无加时","0 = none"],["参加确认时长","Confirm time"],["对观察者公开全局信息","Reveal all to spectators"],
+ ["全员身份 + 夜晚行动，默认关闭","(roles + night actions, off by default)"],["开始游戏","Start"],["提前结束","End now"],["再来一局","Restart"],["暂停","Pause"],["继续","Resume"],
+ ["本局我参与","I play this game"],["3秒确认期内不可改参与","(locked once started)"],["主机转让给","Transfer host to"],["确认转让","Confirm"],["选择成员","Pick member"],
+ ["参加本局","Join this game"],["已确认参加","Confirmed"],["主机已开启了本局","Host opened this game"],["秒内点击参加，否则本局为旁观。","s to join, else spectate."],
+ ["发送","Send"],["狼","W"],["好","G"],["查验结果","Check result"],["是狼人","is a WOLF"],["好人","good"]
+];
+function T(x){ if(LANG!=="en"||x==null)return x; let r=String(x); for(const [a,b] of TT)r=r.split(a).join(b); return r; }
+function applyLang(){
+  document.querySelectorAll("[data-en]").forEach(el=>{ if(!el.dataset.zh)el.dataset.zh=el.textContent; el.textContent=LANG==="en"?el.dataset.en:el.dataset.zh; });
+  document.querySelectorAll("[data-enph]").forEach(el=>{ if(!el.dataset.zhph)el.dataset.zhph=el.placeholder; el.placeholder=LANG==="en"?el.dataset.enph:el.dataset.zhph; });
+  const rn=LANG==="en"?ROLE_NAMES_EN:ROLE_NAMES_ZH, rt=LANG==="en"?ROLE_TIPS_EN:ROLE_TIPS_ZH;
+  for(const k in rn)ROLE_NAMES[k]=rn[k];
+  for(const k in rt)ROLE_TIPS[k]=rt[k];
+  const lb=$("wolfLangBtn"); if(lb)lb.textContent=LANG==="en"?"中":"EN";
+}
+function rerenderAll(){
+  buildRoleGrid(); renderSettings(); renderRoster(); renderStats();
+  if(myRole){$("myRoleName").textContent=ROLE_NAMES[myRole];$("roleTip").textContent=ROLE_TIPS[myRole];}
+  renderActions();
+  if(lastPhaseLabel)setPhaseTitle(lastPhaseLabel,0);
+}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 // ================= 全局状态 =================
@@ -215,13 +341,16 @@ let phase="lobby",day=0,gameRunning=false,gameOver=false,paused=false;
 let myRole=null,myPlayer=null,isSpectator=true,connected=false;
 let counts={wolf:0,villager:0,seer:0,witch:0,hunter:0},deadList=[];
 let godHistory=[];
-let settings={speakTime:60,extendTime:30,extendMax:3,revealToObs:false,confirmSec:10};
+let settings={speakTime:60,extendTime:30,extendMax:3,revealToObs:false,confirmSec:10,
+  roleConfig:{wolf:1,whitewolf:0,villager:0,seer:1,witch:1,hunter:1,guard:1,idiot:0}};
+const ROLE_ORDER=["wolf","whitewolf","villager","seer","witch","hunter","guard","idiot"];
 let speakRound=0,speakDone=new Set();
 let confirmTimer=null,confirmLeft=0,myConfirmed=false;
 let restarting=false,ackSet=new Set(),ackTimer=null;
+let window_adminW=sessionStorage.getItem("chat_admin")==="1";
 // 夜晚数据（主机）
 let wolfKillTarget=null;
-let phaseTimer=null,phaseEndTimeout=null,phaseEndCb=null,phaseEndMs=0,phaseEndStart=0;
+let phaseTimer=null,phaseEndTimeout=null,phaseEndCb=null,phaseEndMs=0,phaseEndStart=0,lastPhaseLabel="";
 
 // ================= 基础 UI =================
 function chatAdd(html,cls,ch){
@@ -243,7 +372,8 @@ function clearTimer(){
   $("timer").textContent="";
 }
 function setPhaseTitle(label,seconds,endCb){
-  $("phaseTitle").textContent=label;
+  lastPhaseLabel=label;
+  $("phaseTitle").textContent=T(label);
   clearTimer();
   phaseEndCb=endCb||null;phaseEndMs=0;phaseEndStart=0;
   if(seconds&&seconds>0){
@@ -256,7 +386,7 @@ function setPhaseTitle(label,seconds,endCb){
 }
 function applyPause(v){
   paused=v;
-  $("pauseBtn").textContent=paused?"▶ 继续":"⏸ 暂停";
+  $("pauseBtn").textContent=paused?T("▶ 继续"):T("⏸ 暂停");
   if(paused){
     clearTimer();
     if(phaseEndMs>0&&phaseEndStart)phaseEndMs=Math.max(0,phaseEndMs-(Date.now()-phaseEndStart));
@@ -278,21 +408,7 @@ function canSeeObs(){
   if(!myPlayer)return true;
   return !myPlayer.alive;
 }
-function currentTab(){return $("tabObs").classList.contains("on")?"obs":"player";}
-function updateTabs(){
-  const obsVisible=canSeeObs();
-  $("tabObs").style.display=obsVisible?"":"none";
-  if(!obsVisible&&currentTab()==="obs")switchTab("player");
-  if(gameOver)$("tabPlayer").classList.remove("on"),$("tabObs").classList.add("on");
-}
-function switchTab(t){
-  if(t==="obs"&&!canSeeObs())return;
-  $("tabPlayer").classList.toggle("on",t==="player");
-  $("tabObs").classList.toggle("on",t==="obs");
-  const ph=t==="player"?"白天发言…":"说点什么…";
-  $("chatInput").placeholder=ph;
-}
-$("tabPlayer").onclick=()=>switchTab("player");
+function updateTabs(){}
 $("setFloatBtn").onclick=()=>{const sp=$("setPanel");sp.style.display=sp.style.display==="block"?"none":"block";};
 $("setClose").onclick=()=>{$("setPanel").style.display="none";};
 $("tabObs").onclick=()=>switchTab("obs");
@@ -322,18 +438,52 @@ function renderRoster(){
     (window._obsNames||[]).forEach(n=>{const li=document.createElement("li");li.textContent=n;ou.appendChild(li);});
   }
   $("ocount").textContent=ou.children.length;
+  if(window_adminW){
+    $("wolfAdminBar").style.display="flex";
+    document.querySelectorAll("#players li, #observers li").forEach(li=>{
+      if(li.querySelector(".wkick"))return;
+      const cb=document.createElement("input");
+      cb.type="checkbox";cb.className="wkick";cb.value=li.textContent;cb.style.marginLeft="4px";
+      li.appendChild(cb);
+    });
+  }
+}
+function doKickWolf(name){
+  for(const [id,c] of connections){
+    if(c._name===name){
+      try{c.send({type:"kickedByAdmin"});}catch(e){}
+      c.close();
+      announce(`【${name}】被管理员移出对话`);
+      return;
+    }
+  }
+}
+function doCloseWolf(){
+  announce("此对话已被管理员关闭");
+  broadcast({type:"roomClosed"});
+  setTimeout(()=>{for(const [id,c] of connections){try{c.close();}catch(e){}} try{peer.destroy();}catch(e){} $("status").textContent="对话已关闭";},2000);
 }
 function renderStats(){
   const box=$("stats");box.innerHTML="";
-  for(const r of["wolf","villager","seer","witch","hunter"]){
+  const campCount=c=>players.filter(p=>p.alive&&CAMP[p.role]===c).length;
+  const camp=document.createElement("span");
+  camp.className="stat-chip";camp.style.background="#fde8e8";
+  camp.textContent=T(`狼阵营 ${campCount("wolf")}`);
+  box.appendChild(camp);
+  const camp2=document.createElement("span");
+  camp2.className="stat-chip";camp2.style.background="#e8f0fd";
+  camp2.textContent=T(`好阵营 ${campCount("good")}`);
+  box.appendChild(camp2);
+  ROLE_ORDER.forEach(r=>{
+    if(!(settings.roleConfig[r]>0)&&!counts[r])return;
     const s=document.createElement("span");
     s.className="stat-chip";
     s.textContent=ROLE_NAMES[r]+" × "+(counts[r]||0);
     box.appendChild(s);
-  }
+  });
   const dl=$("deadList");dl.innerHTML="";
   if(deadList.length){
-    dl.innerHTML="<b style='font-size:13px'>阵亡：</b>";
+    dl.innerHTML="<b style='font-size:13px'>"+T("阵亡")+"：</b>";
     deadList.forEach(d=>{
       const div=document.createElement("div");
       div.className="dead-item";
@@ -354,7 +504,7 @@ function renderAll(){renderRoster();renderStats();updateMyState();updateTabs();r
 
 // ================= 行动区 =================
 function alivePlayers(){return players.filter(p=>p.alive);}
-function wolfPlayers(){return players.filter(p=>p.role==="wolf"&&p.alive);}
+function wolfPlayers(){return players.filter(p=>CAMP[p.role]==="wolf"&&p.alive);}
 function renderActions(){
   const me=myPlayer;
   if(isSpectator||!me||gameOver||!gameRunning){
@@ -363,7 +513,7 @@ function renderActions(){
     else if(isSpectator)$("actionArea").innerHTML='<div class="action-label">👁 旁观中…</div>';
     return;
   }
-  if(paused){$("actionArea").innerHTML='<div class="action-label">⏸ 已暂停</div>';return;}
+  if(paused){$("actionArea").innerHTML='<div class="action-label">⏸ '+T("已暂停")+'</div>';return;}
   const alive=alivePlayers();
   let h="";
   if(phase==="night-wolf"){
@@ -371,8 +521,13 @@ function renderActions(){
       if(me.wolfDone)h+=`<div class="action-label">🌙 已提交击杀目标，等待其他狼人…</div>`;
       else{
         h+='<div class="action-label">🌙 狼人行动：选择击杀目标</div><div class="act-row">';
-        alive.filter(p=>p.role!=="wolf").forEach(p=>h+=`<button data-act="wolfkill" data-id="${p.id}">${esc(p.name)}</button>`);
+        alive.filter(p=>CAMP[p.role]!=="wolf").forEach(p=>h+=`<button data-act="wolfkill" data-id="${p.id}">${esc(p.name)}</button>`);
         h+='<button data-act="wolfkill" data-id="">空刀</button></div>';
+        if(me.role==="whitewolf"&&!me.bombed){
+          h+='<div class="action-label" style="color:#b00">👑 白狼王自爆（带走一人，当晚直接结算）</div><div class="act-row">';
+          alive.filter(p=>CAMP[p.role]!=="wolf").forEach(p=>h+=`<button data-act="wwbomb" data-id="${p.id}" style="background:#fee">自爆→${esc(p.name)}</button>`);
+          h+='</div>';
+        }
       }
     }else h+='<div class="action-label">🌙 狼人行动中…</div>';
   }else if(phase==="night-seer"){
@@ -386,6 +541,18 @@ function renderActions(){
         h+='</div>';
       }
     }else h+='<div class="action-label">🔮 预言家行动中…</div>';
+  }else if(phase==="night-guard"){
+    if(myRole==="guard"&&me.alive){
+      if(me.guardDone)h+='<div class="action-label">🛡 今晚已完成守护</div>';
+      else{
+        h+=`<div class="action-label">🛡 选择守护对象（上夜守的是：${esc(players.find(p=>p.id===me.lastGuard)?.name||"无")}）</div><div class="act-row">`;
+        alive.filter(p=>p.id!==me.id).forEach(p=>{
+          const dis=p.id===me.lastGuard?"disabled":"";
+          h+=`<button data-act="guard" data-id="${p.id}" ${dis}>${esc(p.name)}${p.id===me.lastGuard?"（上夜）":""}</button>`;
+        });
+        h+='<button data-act="guard" data-id="">空守</button></div>';
+      }
+    }else h+='<div class="action-label">🛡 守卫行动中…</div>';
   }else if(phase==="night-witch"){
     if(myRole==="witch"&&me.alive){
       h+=`<div class="action-label">🧪 女巫行动（解药${me.antidote?"可用":"已用"}，毒药${me.poison?"可用":"已用"}）</div>`;
@@ -409,7 +576,8 @@ function renderActions(){
       ? `<div class="action-label">💬 白天讨论中（已说完 ${speakDone.size}/${alive.length}，达标自动进入投票）</div><div class="act-row">${speakDone.has(me.id)?'<button disabled>✅ 我已说完</button>':'<button data-act="speakdone" data-id="">✋ 我说完了</button>'}</div>`
       : '<div class="action-label">😵 你已出局，旁观中</div>';
   }else if(phase==="dayVote"){
-    if(me.alive){
+    if(me.alive&&me.revealed)h+='<div class="action-label">🃏 你是白痴（已翻牌），无投票权</div>';
+    else if(me.alive){
       if(me.voteDone)h+=`<div class="action-label">🗳 已投票给 ${esc(me.voteName||"弃票")}</div>`;
       else{
         h+='<div class="action-label">🗳 投票放逐（白天可继续聊天）</div><div class="act-row">';
@@ -427,7 +595,7 @@ function renderActions(){
       }
     }else h+='<div class="action-label">🔫 猎人行动中…</div>';
   }
-  $("actionArea").innerHTML=h;
+  $("actionArea").innerHTML=T(h);
 }
 
 // ================= 通信（主机侧） =================
@@ -436,7 +604,7 @@ function sendTo(id,msg){
   if(id===meId){localHandle(msg);return;}
   const c=connections.get(id);if(c&&c.open)c.send(msg);
 }
-function announce(text,ch="player"){broadcast({type:"announce",text,ch});if(ch==="player")annMsg(text);}
+function announce(text,ch="player"){text=T(text);broadcast({type:"announce",text,ch});if(ch==="player")annMsg(text);}
 function connCanSeeObs(id){
   if(gameOver)return true;
   const p=players.find(x=>x.id===id);
@@ -467,7 +635,7 @@ function syncRoster(){
   if(isHost){
     const sel=$("transferSel");
     if(sel){
-      sel.innerHTML='<option value="">选择成员…</option>';
+      sel.innerHTML='<option value="">'+T("选择成员")+'…</option>';
       for(const id of lobbyIds){
         if(id===meId)continue;
         const c=connections.get(id);
@@ -477,8 +645,8 @@ function syncRoster(){
   }
 }
 function syncPublic(){
-  counts={wolf:0,villager:0,seer:0,witch:0,hunter:0};
-  players.forEach(p=>{if(p.alive)counts[p.role]++;});
+  counts={};
+  players.forEach(p=>{if(p.alive)counts[p.role]=(counts[p.role]||0)+1;});
   const pub={type:"publicStats",counts,dead:deadList.map(d=>({...d})),players:players.map(p=>({id:p.id,name:p.name,alive:p.alive}))};
   broadcast(pub);
   // 主机本地应用
@@ -530,7 +698,7 @@ function startNight(){
   day++;
   wolfKillTarget=null;
   players.forEach(p=>{p.killTarget=null;p.vote=null;p.witchSave=false;p.witchPoison=null;
-    p.wolfDone=false;p.seerDone=false;p.saveDone=false;p.poisonDone=false;p.voteDone=false;p.gunDone=false;});
+    p.wolfDone=false;p.seerDone=false;p.saveDone=false;p.poisonDone=false;p.voteDone=false;p.gunDone=false;p.guardDone=false;p.guardTarget=null;});
   broadcast({type:"resetDone"});
   announce(`🌙 第 ${day} 天夜晚降临。`);
   nightWolfPhase();
@@ -552,7 +720,13 @@ function nightSeerPhase(){
   if(!seer||seer.seerChecksUsed>=SEER_MAX_CHECKS)return afterSeerPhase();
   hostSetPhase("night-seer","🔮 预言家行动",30,()=>{if(phase==="night-seer")afterSeerPhase();});
 }
-function afterSeerPhase(){nightWitchPhase();}
+function afterSeerPhase(){nightGuardPhase();}
+function nightGuardPhase(){
+  const guard=players.find(p=>p.role==="guard"&&p.alive);
+  if(!guard)return afterGuardPhase();
+  hostSetPhase("night-guard","🛡 守卫行动",30,()=>{if(phase==="night-guard")afterGuardPhase();});
+}
+function afterGuardPhase(){nightWitchPhase();}
 function nightWitchPhase(){
   const witch=players.find(p=>p.role==="witch"&&p.alive);
   if(!witch)return afterWitchPhase();
@@ -567,9 +741,12 @@ function afterWitchPhase(){resolveNight();}
 function resolveNight(){
   const witch=players.find(p=>p.role==="witch"&&p.alive);
   const saved=witch?!!witch.witchSave:false;
+  const guard=players.find(p=>p.role==="guard"&&p.alive);
+  const guarded=guard&&guard.guardTarget&&guard.guardTarget===wolfKillTarget;
+  if(guarded)godLog(`🛡 守卫守中了 ${players.find(p=>p.id===wolfKillTarget).name}`);
   const poisonTarget=witch?(witch.witchPoison||null):null;
   const deaths=[];
-  if(wolfKillTarget&&!saved){const kp=players.find(p=>p.id===wolfKillTarget);if(kp&&kp.alive){deaths.push(["wolf",kp]);}}
+  if(wolfKillTarget&&!saved&&!guarded){const kp=players.find(p=>p.id===wolfKillTarget);if(kp&&kp.alive){deaths.push(["wolf",kp]);}}
   if(poisonTarget){const pp=players.find(p=>p.id===poisonTarget);if(pp&&pp.alive)deaths.push(["poison",pp]);}
   deaths.forEach(([cause,p])=>killPlayer(p,cause==="wolf"?"被刀":"被毒"));
   if(deaths.length===0)announce("☀️ 昨晚是平安夜。");
@@ -598,7 +775,7 @@ function speakNeed(total){return Math.ceil(total*(1/(speakRound+2)));}
 function speakStatusBroadcast(){
   const total=alivePlayers().length;
   broadcast({type:"speakStatus",doneList:[...speakDone],total});
-  $("speakProg").textContent=phase==="daySpeak"?`已说完 ${speakDone.size}/${total}（第${speakRound+1}轮判定需 ${speakNeed(total)} 人）`:"";
+  $("speakProg").textContent=phase==="daySpeak"?T(`已说完 ${speakDone.size}/${total}（第${speakRound+1}轮判定需 ${speakNeed(total)} 人）`):"";
 }
 function trySpeakAdvance(){
   const total=alivePlayers().length;
@@ -624,7 +801,7 @@ function startDayVote(){
   speakStatusBroadcast();
   $("speakProg").textContent="";
   hostSetPhase("dayVote",`🗳 第 ${day} 天 · 投票放逐`,30,()=>{if(phase==="dayVote")resolveDayVote();});
-  players.forEach(p=>{p.vote=null;p.voteDone=false;});
+  players.forEach(p=>{p.vote=null;p.voteDone=!!(p.role==="idiot"&&p.revealed);p.voteName=p.voteDone?"无投票权":"";});
   broadcast({type:"resetDone"});
   announce("🗳 开始投票！白天仍可聊天。全员投完自动结算。");
 }
@@ -640,6 +817,14 @@ function resolveDayVote(){
     return startNight();
   }
   const ex=players.find(p=>p.id===exile);
+  if(ex.role==="idiot"&&!ex.revealed){
+    ex.revealed=true;ex.voteDone=true;ex.voteName="无投票权";
+    announce(`🗳 ${ex.name} 被投出，但他是白痴，翻牌免死！（之后无投票权）`);
+    godLog(`🗳 ${ex.name} 白痴翻牌免死`);
+    syncPublic();
+    const w2=checkWin();if(w2)return endGame(w2);
+    return startNight();
+  }
   killPlayer(ex,"被放逐");
   announce(`🗳 ${ex.name} 被投票放逐！`);
   godLog(`🗳 白天放逐：${ex.name}`);
@@ -678,6 +863,27 @@ function handleAct(from,msg){
     p.wolfDone=true;p.killTarget=msg.target||null;
     godLog(`🐺 ${p.name} 指定击杀 ${t?t.name:"空刀"}`);
     if(wolfPlayers().every(w=>w.wolfDone))afterWolfPhase();
+  }else if(phase==="night-guard"&&msg.act==="guard"&&p.role==="guard"){
+    if(p.guardDone)return;
+    if(msg.target&&msg.target===p.lastGuard)return;
+    const t=msg.target?players.find(x=>x.id===msg.target):null;
+    if(t&&!t.alive)return;
+    p.guardDone=true;p.guardTarget=msg.target||null;
+    if(p.guardTarget)p.lastGuard=p.guardTarget;
+    godLog(`🛡 守卫守护了 ${t?t.name:"（空守）"}`);
+    afterGuardPhase();
+  }else if(phase==="night-wolf"&&msg.act==="wwbomb"&&p.role==="whitewolf"){
+    if(p.bombed||p.wolfDone)return;
+    const t=players.find(x=>x.id===msg.target);
+    if(!t||!t.alive||CAMP[t.role]==="wolf")return;
+    p.bombed=true;p.wolfDone=true;wolfKillTarget=null;
+    clearTimer();
+    killPlayer(p,"自爆");
+    killPlayer(t,"被白狼王带走");
+    godLog(`👑 ${p.name} 自爆带走了 ${t.name}`);
+    announce(`👑 ${p.name} 自爆，带走了 ${t.name}！当晚直接结算。`);
+    if(t.role==="hunter"){setTimeout(()=>gunPhase(t.id,"被白狼王自爆带走"),400);return;}
+    setTimeout(()=>{const w=checkWin();if(w)endGame(w);else resolveNight();},400);
   }else if(phase==="night-seer"&&msg.act==="seer"&&p.role==="seer"){
     if(p.seerDone||p.seerChecksUsed>=SEER_MAX_CHECKS)return;
     const t=players.find(x=>x.id===msg.target);
@@ -708,7 +914,7 @@ function handleAct(from,msg){
       if(p.saveDone&&p.poisonDone)afterWitchPhase();
     }
   }else if(phase==="dayVote"&&msg.act==="vote"){
-    if(p.voteDone)return;
+    if(p.voteDone||p.revealed)return;
     const t=msg.target?players.find(x=>x.id===msg.target):null;
     if(t&&(!t.alive||t.id===p.id))return;
     p.voteDone=true;p.vote=msg.target||null;p.voteName=t?t.name:"弃票";
@@ -803,7 +1009,8 @@ function localHandle(msg){
     applyPause(!!msg.paused);
     sysMsg(msg.paused?"⏸ 主机暂停了游戏":"▶ 游戏继续");
   }else if(msg.type==="resetDone"){
-    if(myPlayer){myPlayer.wolfDone=false;myPlayer.seerDone=false;myPlayer.saveDone=false;myPlayer.poisonDone=false;myPlayer.voteDone=false;myPlayer.gunDone=false;myPlayer.vote=null;}
+    if(myPlayer){myPlayer.wolfDone=false;myPlayer.seerDone=false;myPlayer.saveDone=false;myPlayer.poisonDone=false;myPlayer.gunDone=false;myPlayer.vote=null;
+      myPlayer.voteDone=!!(myPlayer.role==="idiot"&&myPlayer.revealed);}
     renderActions();
   }else if(msg.type==="witchInfo"){
     window._witchKillName=msg.killName;window._noKill=msg.noKill;
@@ -812,7 +1019,7 @@ function localHandle(msg){
     annMsg(`🔮 查验结果：${esc(msg.name)} 是 ${msg.isWolf?"🐺狼人":"好人"}。`);
   }else if(msg.type==="speakStatus"){
     speakDone=new Set(msg.doneList||[]);
-    $("speakProg").textContent=phase==="daySpeak"?`已说完 ${speakDone.size}/${msg.total}（达标自动进入投票）`:"";
+    $("speakProg").textContent=phase==="daySpeak"?T(`已说完 ${speakDone.size}/${msg.total}（达标自动进入投票）`):"";
     if(phase==="daySpeak")renderActions();
   }else if(msg.type==="announce"){
     if(msg.ch==="obs"){if(canSeeObs())annMsg(msg.text,"obs");}
@@ -847,8 +1054,15 @@ function localHandle(msg){
     if(c&&c.open)c.send({type:"resetAck"});
   }else if(msg.type==="settings"){
     settings=msg.settings;
+    buildRoleGrid();
     renderSettings();
     if(!settings.revealToObs)hideGod();
+  }else if(msg.type==="kickedByAdmin"){
+    sysMsg("你已被管理员移出对话");
+    setTimeout(()=>{try{peer.destroy();}catch(e){}$("status").textContent="已被移出";},1500);
+  }else if(msg.type==="roomClosed"){
+    sysMsg("此对话已被管理员关闭");
+    setTimeout(()=>{try{peer.destroy();}catch(e){}$("status").textContent="对话已关闭";},2000);
   }else if(msg.type==="godState"){
     $("godCard").style.display="block";
     renderGod(msg.players||[]);
@@ -860,7 +1074,7 @@ function localHandle(msg){
 
 // ================= 本地 reset =================
 function doReset(){
-  players=[];deadList=[];counts={wolf:0,villager:0,seer:0,witch:0,hunter:0};
+  players=[];deadList=[];counts={};
   godHistory=[];day=0;speakDone=new Set();speakRound=0;
   gameRunning=false;gameOver=false;paused=false;phase="lobby";wolfKillTarget=null;
   myRole=null;myPlayer=null;isSpectator=true;myConfirmed=false;
@@ -909,14 +1123,23 @@ function finishConfirm(){
     broadcast({type:"confirmCancel"});
     return;
   }
+  const verr=validateConfig(joined.length);
+  if(verr){
+    announce("⚠️ "+verr);
+    phase="lobby";$("participateChk").disabled=false;
+    setPhaseTitle("大厅",0);$("timer").textContent="";
+    $("startBtn").style.display="";
+    return;
+  }
   // 发身份
-  const roles=shuffle(buildRoles(joined.length));
+  const roles=dealRoles(joined.length);
   players=joined.map((id,i)=>({id,name:id===meId?myName:(connections.get(id)?connections.get(id)._name:"?"),role:roles[i],alive:true,
-    antidote:true,poison:true,wolfDone:false,seerDone:false,saveDone:false,poisonDone:false,voteDone:false,gunDone:false,seerChecksUsed:0}));
+    antidote:true,poison:true,bombed:false,revealed:false,lastGuard:null,
+    wolfDone:false,seerDone:false,saveDone:false,poisonDone:false,voteDone:false,gunDone:false,seerChecksUsed:0,guardDone:false,guardTarget:null}));
   gameRunning=true;gameOver=false;day=0;
   lobbyIds=new Set([...lobbyIds]); // 不变
   players.forEach(p=>{
-    const wolves=players.filter(w=>w.role==="wolf").map(w=>w.name);
+    const wolves=players.filter(w=>CAMP[w.role]==="wolf").map(w=>w.name);
     const msg={type:"gameStart",you:p.id,role:p.role,players:players.map(x=>({id:x.id,name:x.name,alive:true})),wolves:wolves};
     sendTo(p.id,msg);
   });
@@ -992,15 +1215,16 @@ function becomeHost(){
         }
       }
       else if(data.type==="speak"){
-        const ch=data.channel==="obs"?"obs":"player";
         const p=players.find(x=>x.id===conn.peer);
-        if(ch==="player"){
-          if(!p||!p.alive)return;
-          if(!["daySpeak","dayVote","gun"].includes(phase)||gameOver)return;
-          chatBroadcast("player",p.name,String(data.text||"").slice(0,300));
-        }else{
+        const alive=!!(p&&p.alive);
+        const day=["daySpeak","dayVote","gun"].includes(phase);
+        const text=String(data.text||"").slice(0,300);
+        if(gameOver||!alive){
           if(!connCanSeeObs(conn.peer))return;
-          chatBroadcast("obs",conn._name||"?",String(data.text||"").slice(0,300));
+          chatBroadcast("obs",conn._name||"?",text);
+        }else{
+          if(!day)return;
+          chatBroadcast("player",p.name,text);
         }
       }
       else if(data.type==="act"){
@@ -1010,6 +1234,8 @@ function becomeHost(){
       else if(data.type==="resetAck"){
         if(restarting){ackSet.delete(conn.peer);ackSet.add(conn.peer+"_done");checkResetDone();}
       }
+      else if(data.type==="adminKick"){doKickWolf(String(data.name||""));}
+      else if(data.type==="adminClose"){doCloseWolf();}
     });
     conn.on("close",()=>{
       connections.delete(conn.peer);
@@ -1112,24 +1338,18 @@ $("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat();});
 function sendChat(){
   const text=$("chatInput").value.trim();
   if(!text)return;
-  let ch=currentTab();
-  if(gameOver)ch="obs";
-  if(ch==="player"){
-    const me=myPlayer;
-    if(!me||!me.alive){sysMsg("只有存活玩家能在玩家频道发言。");return;}
-    if(!["daySpeak","dayVote","gun"].includes(phase)){sysMsg("夜晚不能发言，白天发言和投票阶段都可以。");return;}
-  }
+  const day=["daySpeak","dayVote","gun"].includes(phase);
+  const route=alive=>{ if(gameOver)return"obs"; if(alive)return day?"player":null; return"obs"; };
   if(isHost){
     const p=players.find(x=>x.id===meId);
-    if(ch==="player"){
-      if(!p||!p.alive)return;
-      if(!["daySpeak","dayVote","gun"].includes(phase)||gameOver)return;
-      chatBroadcast("player",p.name,text);
-    }else{
-      if(!connCanSeeObs(meId))return;
-      chatBroadcast("obs",myName,text);
-    }
+    const ch=route(!!(p&&p.alive));
+    if(!ch){sysMsg("夜晚不能发言，白天发言和投票阶段都可以。");return;}
+    if(ch==="player")chatBroadcast("player",p.name,text);
+    else{if(!connCanSeeObs(meId))return;chatBroadcast("obs",myName,text);}
   }else{
+    const me=myPlayer;
+    const ch=route(!!(me&&me.alive));
+    if(!ch){sysMsg("夜晚不能发言，白天发言和投票阶段都可以。");return;}
     const c=connections.get(wolfRoom);
     if(c&&c.open)c.send({type:"speak",channel:ch,text});
     else sysMsg("未连接主机");
@@ -1160,6 +1380,17 @@ $("transferBtn").onclick=()=>{
   broadcast({type:"hostClosing",next});
   $("status").textContent="已让出主机，本页可关闭";
   setTimeout(()=>{try{peer.destroy();}catch(e){}},500);
+};
+$("wolfKickBtn").onclick=()=>{
+  const names=[...document.querySelectorAll(".wkick:checked")].map(cb=>cb.value);
+  if(!names.length)return;
+  if(isHost)names.forEach(doKickWolf);
+  else{const c=connections.get(wolfRoom);if(c&&c.open)names.forEach(n=>c.send({type:"adminKick",name:n}));}
+};
+$("wolfCloseBtn").onclick=()=>{
+  if(!confirm("确定强制关闭狼人杀房间？所有人将被断开。"))return;
+  if(isHost)doCloseWolf();
+  else{const c=connections.get(wolfRoom);if(c&&c.open)c.send({type:"adminClose"});}
 };
 $("joinConfirmBtn").onclick=()=>{
   if(myConfirmed)return;
@@ -1214,7 +1445,7 @@ function renderSettings(){
   $("revealChk").checked=!!settings.revealToObs;
   const dis=!isHost;
   ["speakTimeInput","extendTimeInput","extendMaxInput","confirmSecInput","revealChk"].forEach(id=>$(id).disabled=dis);
-  $("setWho").textContent=isHost?"（你主机，可修改）":"（仅主机可修改）";
+  $("setWho").textContent=isHost?T("（你主机，可修改）"):T("（仅主机可修改）");
 }
 function settingsChanged(){
   if(!isHost)return;
@@ -1235,6 +1466,25 @@ function enter(room,name){
   $("roomLabel").textContent=room+"（wolf: "+wolfRoom+"）";
   becomeClient();
 }
+function buildRoleGrid(){
+  const g=$("roleGrid");g.innerHTML="";
+  ROLE_ORDER.forEach(r=>{
+    const lab=document.createElement("label");
+    lab.style.fontSize="12px";
+    const camp=CAMP[r]==="wolf"?"狼":"好";
+    lab.innerHTML=`${ROLE_NAMES[r]}<span class="mut">(${camp})</span> <input type="number" class="roleCnt" data-role="${r}" min="0" max="9" style="width:44px" value="${settings.roleConfig[r]||0}">`;
+    g.appendChild(lab);
+  });
+  g.querySelectorAll(".roleCnt").forEach(inp=>inp.onchange=()=>{
+    if(!isHost){renderSettings();return;}
+    const v=parseInt(inp.value);
+    settings.roleConfig[inp.dataset.role]=isNaN(v)?0:Math.max(0,Math.min(9,v));
+    broadcast({type:"settings",settings});
+  });
+}
+$("wolfLangBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";localStorage.setItem("wolf_lang",LANG);applyLang();rerenderAll();};
+applyLang();
+buildRoleGrid();
 renderSettings();
 const qp=new URLSearchParams(location.search);
 const qRoom=(qp.get("room")||"").trim();
@@ -1254,5 +1504,7 @@ if(qRoom&&qName){
   };
 }
 </script>
+<!-- VersionInformation||版本信息 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">wolf · V.T-20261117-2058</div>
 </body>
 </html>

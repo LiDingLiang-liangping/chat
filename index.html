@@ -3,250 +3,1290 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P2P 聊天室（支持 #画板 #狼人杀 #世界 #五子棋 链接）</title>
+<title>P2P 小站（MainRoom 中枢 · #画板 #狼人杀 #世界 #五子棋 #CS）</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
-body{padding:12px;max-width:850px;margin:0 auto}
-#ui{margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-#chatBox{
-  border:1px solid #999;
-  height:46vh;min-height:320px;
-  overflow-y:auto;
-  padding:8px;
-  margin-bottom:10px;
-  background:#fff;
-}
-.msg{margin:4px 0;line-height:1.4}
-.msg-self{color:#0066cc}
-.msg-other{color:#222}
-.msg-system{color:#888;font-style:italic}
-.time{font-size:0.8em;color:#777;margin-right:6px}
-/* 画板/狼人杀链接高亮 */
-a.board-link{
-  color:#0055dd;
-  text-decoration:underline;
-  font-weight:bold;
-}
-a.wolf-link{
-  color:#cc3300;
-  text-decoration:underline;
-  font-weight:bold;
-}
-a.world-link{
-  color:#1a9d4a;
-  text-decoration:underline;
-  font-weight:bold;
-}
-/* 新增五子棋链接样式 */
-a.go-link{
-  color:#8b4513;
-  text-decoration:underline;
-  font-weight:bold;
-}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+body{padding:12px;max-width:980px;margin:0 auto;background:#f6f7f9}
+/* ===== 顶栏 ===== */
+#topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+#logo{font-weight:700;font-size:16px;white-space:nowrap}
+#statusPill{font-size:12.5px;padding:4px 12px;border-radius:20px;background:#eee;color:#555;white-space:nowrap}
+#statusPill.host{background:#e7f6ec;color:#1a7f37}
+#statusPill.member{background:#e8f0fe;color:#1a56cc}
+#statusPill.offline{background:#fdecea;color:#c0392b}
+#topbar button{padding:7px 12px;font-size:13.5px;border:1px solid #bbb;background:#fff;border-radius:6px;cursor:pointer}
+#topbar button:hover{background:#f0f0f0}
+#topbar button.primary{background:#0066cc;border-color:#0066cc;color:#fff}
+#topbar button.primary:hover{background:#0052a3}
+#topbar button.idle{background:#7d3c98;border-color:#7d3c98;color:#fff}
+#topbar .sp{flex:1}
+/* ===== 连接行 ===== */
+#connRow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+#connRow input{padding:7px 9px;font-size:14px;border:1px solid #bbb;border-radius:6px}
+#nameInput{width:130px}
+#roomInput{width:150px}
+#connRow button{padding:7px 12px;font-size:13.5px;border:1px solid #bbb;background:#fff;border-radius:6px;cursor:pointer}
+#connRow button:hover{background:#f0f0f0}
+/* ===== 成员面板 ===== */
+#memberWrap{border:1px solid #ddd;border-radius:10px;padding:8px 12px;margin-bottom:10px;background:#fff}
+#memberWrap summary{cursor:pointer;font-size:13px;color:#555}
+#memberList{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.mchip{padding:3px 10px;background:#eef2fb;border-radius:12px;font-size:13px;display:inline-flex;gap:4px;align-items:center;cursor:default;user-select:none}
+.mchip.me{background:#dbeafe;font-weight:600}
+.mchip.admin{background:#f3e8fd;border:1px solid #c9a6f2}
+.mchip.hostchip{background:#fff3d6;border:1px solid #e8c877}
+.mchip.clickable{cursor:pointer}
+.mchip.clickable:hover{filter:brightness(.95)}
+.badge{font-size:11px}
+#hostBar{display:none;gap:8px;align-items:center;margin-top:4px;font-size:13px}
+#hostBar button{padding:5px 10px;font-size:12.5px;border:1px solid #bbb;background:#fff;border-radius:6px;cursor:pointer}
+/* 成员操作菜单 */
+#memMenu{position:fixed;z-index:60;background:#fff;border:1px solid #bbb;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:none;flex-direction:column;min-width:150px}
+#memMenu button{padding:9px 14px;font-size:13px;background:#fff;border:none;text-align:left;cursor:pointer}
+#memMenu button:hover{background:#f0f4ff}
+#memMenu button.danger{color:#c0392b}
+#memMenu .mmTitle{padding:7px 14px;font-size:12px;color:#888;border-bottom:1px solid #eee}
+/* ===== 聊天 ===== */
+#chatBox{border:1px solid #ddd;border-radius:10px;height:46vh;min-height:320px;overflow-y:auto;padding:10px;margin-bottom:10px;background:#fff}
+.msg{margin:4px 0;line-height:1.45;font-size:14px;word-break:break-word}
+.msg-self{color:#0066cc}.msg-other{color:#222}.msg-system{color:#888;font-style:italic;font-size:12.5px}
+.time{font-size:0.8em;color:#999;margin-right:6px}
+a.board-link{color:#0055dd;text-decoration:underline;font-weight:bold}
+a.wolf-link{color:#cc3300;text-decoration:underline;font-weight:bold}
+a.world-link{color:#1a9d4a;text-decoration:underline;font-weight:bold}
+a.go-link{color:#8b4513;text-decoration:underline;font-weight:bold}
+a.cs-link{color:#5b2c87;text-decoration:underline;font-weight:bold}
 a:hover{color:#dd3333}
 #inputArea{display:flex;gap:8px}
-#msgInput{flex:1;padding:8px;font-size:16px}
-button{padding:8px 12px;font-size:14px}
-#status{color:#226;font-size:13px}
-small.hint{color:#999}
-
-/* 昵称门禁 */
+#msgInput{flex:1;padding:9px;font-size:16px;border:1px solid #bbb;border-radius:6px}
+#sendBtn{padding:9px 18px;font-size:14px;border:none;background:#0066cc;color:#fff;border-radius:6px;cursor:pointer}
+small.hint{color:#999;display:block;margin-top:8px;font-size:12px;line-height:1.6}
+/* ===== 昵称门禁（秘密节奏进入，无任何提示） ===== */
 #nickGate{position:fixed;inset:0;background:rgba(255,255,255,.96);display:flex;align-items:center;justify-content:center;z-index:99}
 #nickGate .box{background:#fff;border:1px solid #ccc;border-radius:10px;padding:24px 28px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.12)}
 #nickGate h2{font-size:18px;margin-bottom:12px}
-#nickGate input{padding:10px;font-size:16px;width:220px;margin-bottom:12px}
-#nickGate button{padding:10px 24px;font-size:15px;background:#2f6fed;color:#fff;border:none;border-radius:5px;cursor:pointer}
+#nickGate input{padding:12px;font-size:16px;width:260px;border:1px solid #2e4a5e;border-radius:8px;
+  background:#0e1620;color:#7ff3d6;caret-color:#7ff3d6;font-family:ui-monospace,Consolas,"Courier New",monospace;
+  text-align:center;letter-spacing:.5px;transition:border-color .15s,box-shadow .15s}
+#nickGate input::placeholder{color:#5a7d8f}
+#nickGate input:focus{outline:none;border-color:#7ff3d6;box-shadow:0 0 20px rgba(127,243,214,.25)}
+#adminCodeInput{display:none;margin-top:8px}
+/* ===== 挂机界面 ===== */
+#idleScr{position:fixed;inset:0;background:linear-gradient(160deg,#141021,#1d1430);color:#e8e2f5;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:80;gap:14px}
+#idleScr .big{font-size:22px;letter-spacing:4px}
+#idleScr .sub{font-size:13px;color:#a89ec4}
+#idleScr .stats{font-size:14px;color:#cfc6ea;font-variant-numeric:tabular-nums}
+#idleScr .pulse{width:14px;height:14px;border-radius:50%;background:#8f6fd8;animation:ip 1.6s infinite}
+@keyframes ip{0%,100%{box-shadow:0 0 0 0 rgba(143,111,216,.5)}50%{box-shadow:0 0 0 12px rgba(143,111,216,0)}}
+#idleScr button{padding:10px 26px;font-size:14px;border:1px solid #8f6fd8;background:transparent;color:#d8cdf5;border-radius:8px;cursor:pointer}
+#idleScr button:hover{background:rgba(143,111,216,.15)}
+#themeBtn{position:fixed;top:12px;right:12px;z-index:100;width:38px;height:38px;border-radius:50%;border:1px solid #c8d4e6;background:#fff;color:#445;font-size:16px;cursor:pointer;line-height:1}
+#themeBtn:hover{border-color:#0066cc}
 </style>
+<style id="sciTheme" disabled>
+body{background:#1c2742!important;color:#d7e3fa}
+#topbar,#memberWrap,#chatBox,.panel,#memMenu{background:#232f52!important;border-color:#35486e!important}
+.msg-other{color:#c3d4f2}.msg-self{color:#5fd4ff}.msg-system{color:#7f95bd}.time{color:#5a7099}
+#statusPill.host{background:#173a2c;color:#54e6a8}
+#statusPill.member{background:#1a3054;color:#63b3ff}
+#statusPill.offline{background:#452231;color:#ff8fa3}
+#topbar button{background:#2b3a61;color:#b9c9ea;border-color:#3d5380}
+#topbar button:hover{background:#354770}
+#topbar button.primary{background:#2f7fe0;border-color:#2f7fe0;color:#fff}
+#topbar button.primary:hover{background:#54a0ff}
+#topbar button.idle{background:#4a3a7a;border-color:#8f7cff;color:#ddd3ff}
+#connRow input,#msgInput{background:#1a2440;color:#d7e3fa;border-color:#3d5380}
+#msgInput::placeholder{color:#5a7099}
+#sendBtn{background:#2f7fe0}
+#sendBtn:hover{background:#54a0ff}
+.mchip{background:#263a63}.mchip.me{background:#1c3f66;color:#d7e3fa}
+.mchip.admin{background:#2d2450;border-color:#9d86ff}
+.mchip.hostchip{background:#3a3320;border-color:#e0ca90}
+#memMenu button{background:#2b3a61;color:#d7e3fa}
+#memMenu button:hover{background:#354770}
+#memMenu .mmTitle{color:#7f95bd;border-color:#35486e}
+a.board-link{color:#6cb0ff}a.wolf-link{color:#ff9a7a}a.world-link{color:#6fe3a0}
+a.go-link{color:#ffcf7a}a.cs-link{color:#c09aff}
+a:hover{color:#5fd4ff}
+small.hint{color:#7f95bd}
+/* 科幻蓝下的挂机界面 */
+#idleScr{background:linear-gradient(160deg,#1c2742,#25355e)}
+/* 主题切换按钮 */
+#themeBtn{position:fixed;top:12px;right:12px;z-index:100;width:38px;height:38px;border-radius:50%;border:1px solid #c8d4e6;background:#fff;color:#445;font-size:16px;cursor:pointer;line-height:1}
+#themeBtn:hover{border-color:#0066cc}
+</style>
+
 </head>
 <body>
+<button id="themeBtn" title="切换科幻蓝主题">🌌</button>
 <div id="nickGate"><div class="box">
 <h2>👋 先输入你的昵称</h2>
-<input id="nickInput" placeholder="昵称，进入后也可修改" maxlength="20">
-<div><button id="nickBtn">进入聊天室</button></div>
+<input id="nickInput" placeholder="昵称" maxlength="20">
+<input id="adminCodeInput" placeholder="access code" autocomplete="off">
 </div></div>
-<div id="ui">
-  <input id="nameInput" placeholder="输入你的昵称" />
-  <input id="roomInput" placeholder="房间ID，如Chat 1" value="Chat 1">
-  <button id="createBtn">创建房间(主机)</button>
-  <button id="joinBtn">加入房间</button>
-  <button id="notifyBtn">开启消息通知</button>
-  <span id="status">等待操作</span>
+
+<div id="topbar">
+  <span id="logo">🔮 P2P 小站</span>
+  <span id="statusPill" class="offline">未连接</span>
+  <span class="sp"></span>
+  <button id="joinMainBtn" class="primary" data-en="Connect MainRoom">连接主房间</button>
+  <button id="idleBtn" class="idle" style="display:none" data-en="Idle (keep host alive)">挂机</button>
+  <button id="notifyBtn" data-en="Enable notifications">开启消息通知</button>
+  <button id="langBtn">EN</button>
 </div>
+
+<div id="connRow">
+  <input id="nameInput" placeholder="昵称" maxlength="20">
+  <input id="roomInput" placeholder="房间ID" value="MainRoom">
+  <button id="createBtn" data-en="Create room (be Host)">创建房间（当主机）</button>
+  <button id="joinBtn" data-en="Join room">加入房间</button>
+</div>
+
+<details id="memberWrap" open>
+  <summary><span data-en="Members">成员</span>（<span id="memCount">1</span>）<span id="memHint" style="color:#aaa;font-size:12px"></span></summary>
+  <div id="memberList"></div>
+  <div id="hostBar">
+    <button id="closeRoomBtn" data-en="Force close room">强制关闭房间</button>
+  </div>
+</details>
+
 <div id="chatBox"></div>
 <div id="inputArea">
-  <input id="msgInput" placeholder="输入消息，含 #画板 #狼人杀 #世界 #五子棋 会生成链接" />
-  <button id="sendBtn">发送</button>
+  <input id="msgInput" placeholder="输入消息，含 #画板 #狼人杀 #世界 #五子棋 #CS 会生成链接" data-enph="Message (#board #wolf #world #go #cs make links)" />
+  <button id="sendBtn" data-en="Send">发送</button>
 </div>
-<p class="hint">💡 发送包含 <b>#画板</b> 生成画板链接，<b>#狼人杀</b> 生成狼人杀链接，<b>#世界</b> 生成多人世界链接，<b>#五子棋</b> 生成五子棋链接，链接自动带房间号和你的昵称。</p>
+<small class="hint" data-en="Tip: send #board #wolf #world #go #cs to generate room links.">💡 发送 <b>#画板</b>、<b>#狼人杀</b>、<b>#世界</b>、<b>#五子棋</b>、<b>#CS</b> 生成链接，链接自动跟随当前主房间。主机可点「挂机」挂起界面保活；主机掉线后，第一个进房的人会接任主机。</small>
+
+<div id="memMenu"><div class="mmTitle"></div></div>
+
+<div id="idleScr">
+  <div class="pulse"></div>
+  <div class="big">主机挂机中</div>
+  <div class="sub">此页面正在维持 P2P 主机连接，请勿关闭本标签页</div>
+  <div class="stats" id="idleStats">—</div>
+  <button id="idleExitBtn" data-en="Restore interface">恢复界面</button>
+</div>
 <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <script>
-const chatBox = document.getElementById('chatBox');
-const nameInput = document.getElementById('nameInput');
-const roomInput = document.getElementById('roomInput');
-const createBtn = document.getElementById('createBtn');
-const joinBtn = document.getElementById('joinBtn');
-const statusEl = document.getElementById('status');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const notifyBtn = document.getElementById('notifyBtn');
-let peer;
-let isHost = false;
-let roomId;
-let myName = "";
-let connections = new Map();
-let notificationEnabled = false;
-// 昵称门禁：进入 main 前必须先有昵称
-(function(){
-  const gate=document.getElementById("nickGate");
-  const nickInput=document.getElementById("nickInput");
-  const nickBtn=document.getElementById("nickBtn");
-  const saved=localStorage.getItem("chat_nick")||"";
-  nameInput.value=saved;
-  function tryEnter(){
-    const n=nickInput.value.trim();
-    if(!n)return alert("请输入昵称！");
-    localStorage.setItem("chat_nick",n);
-    nameInput.value=n;
-    myName=n;
-    gate.style.display="none";
-  }
-  if(saved){myName=saved;gate.style.display="none";}
-  else setTimeout(()=>nickInput.focus(),100);
-  nickBtn.onclick=tryEnter;
-  nickInput.addEventListener("keydown",e=>{if(e.key==="Enter")tryEnter();});
-})();
-// 转义HTML，防止XSS
-function esc(s){
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const $=id=>document.getElementById(id);
+
+/* ============ 科幻蓝主题切换 ============ */
+const sciStyle=document.getElementById("sciTheme");
+function applyTheme(sci){
+  sciStyle.disabled=!sci;
+  localStorage.setItem("chat_theme",sci?"sci":"light");
+  const b=document.getElementById("themeBtn");
+  b.textContent=sci?"☀️":"🌙";
+  b.title=sci?"切回浅色主题":"切换科幻蓝主题";
 }
-function formatTime(date){
-  const h = String(date.getHours()).padStart(2,"0");
-  const m = String(date.getMinutes()).padStart(2,"0");
-  const s = String(date.getSeconds()).padStart(2,"0");
-  return `${h}:${m}:${s}`;
+document.getElementById("themeBtn").onclick=()=>applyTheme(sciStyle.disabled);
+applyTheme(localStorage.getItem("chat_theme")==="sci"); /* 默认浅色 */
+
+const chatBox=$('chatBox'),nameInput=$('nameInput'),roomInput=$('roomInput'),
+      msgInput=$('msgInput'),sendBtn=$('sendBtn'),notifyBtn=$('notifyBtn'),
+      memberListEl=$('memberList'),memCount=$('memCount'),statusPill=$('statusPill');
+let peer=null,isHost=false,roomId="",myName="",myId="",connections=new Map(),notificationEnabled=false;
+let roomClosed=false;
+let lastSig="",lastSigT=0;
+let netGen=0;                 // 代次：用户手动操作时作废旧循环
+let pendingClaimHash=null;    // 节奏门禁待发送的 adminClaim
+let idleMode=false,hostStartAt=0;
+/* 主机端花名册：id -> {name,admin}; joinSeq 记录进房顺序（主机继任用） */
+let members=new Map(),joinSeq=0,hostOrder=[];
+/* 客户端镜像 */
+window._roster=null;
+
+/* ============ 中英文切换 ============ */
+let LANG=localStorage.getItem("chat_lang")||"zh";
+function applyLang(){
+  document.querySelectorAll("[data-en]").forEach(el=>{
+    if(!el.dataset.zh)el.dataset.zh=el.textContent;
+    el.textContent=LANG==="en"?el.dataset.en:el.dataset.zh;
+  });
+  document.querySelectorAll("[data-enph]").forEach(el=>{
+    if(!el.dataset.zhph)el.dataset.zhph=el.placeholder;
+    el.placeholder=LANG==="en"?el.dataset.enph:el.dataset.zhph;
+  });
+  $("langBtn").textContent=LANG==="en"?"中":"EN";
 }
-notifyBtn.onclick = async ()=>{
-  if (!("Notification" in window)){
-    alert("浏览器不支持桌面通知");
-    return;
-  }
-  if(Notification.permission === "granted"){
-    notificationEnabled = true;
-    notifyBtn.textContent="通知已开启";
-    return;
-  }
-  const permission = await Notification.requestPermission();
-  if(permission === "granted"){
-    notificationEnabled = true;
-    notifyBtn.textContent="通知已开启";
-  }else{
-    alert("通知权限被拒绝");
-  }
+$("langBtn").onclick=()=>{LANG=LANG==="en"?"zh":"en";localStorage.setItem("chat_lang",LANG);applyLang();};
+applyLang();
+
+/* ============ 秘密节奏门禁（XX XX → 授权码 → adminClaim） ============ */
+const ADMIN_HASH="129589a884d88f3dc379505bb51509b9728ca8a634e068bbaebf6b58dc894b80";
+const gate=$("nickGate"),nickInput=$("nickInput"),codeInput=$("adminCodeInput");
+let taps=[];
+function tapZone(e){if(e.target.closest("input"))return;taps.push(Date.now());if(taps.length>12)taps.shift();}
+gate.addEventListener("mousedown",tapZone);
+gate.addEventListener("touchstart",tapZone,{passive:true});
+function splitGroups(ts,gapMs){const gs=[];let cur=[ts[0]];for(let i=1;i<ts.length;i++){if(ts[i]-ts[i-1]>gapMs){gs.push(cur);cur=[];}cur.push(ts[i]);}gs.push(cur);return gs;}
+function matchPat(pat){
+  const sum=pat.reduce((a,b)=>a+b,0);
+  if(taps.length<sum)return false;
+  const recent=taps.slice(-sum);
+  if(Date.now()-recent[recent.length-1]>3000)return false;
+  const gs=splitGroups(recent,600);
+  return gs.length===pat.length&&gs.every((g,i)=>g.length===pat[i]);
 }
-function showNotification(title, body){
-  if(!notificationEnabled || Notification.permission !== "granted") return;
-  try{ new Notification(title,{body:body}); }catch(e){}
+async function sha256(t){
+  const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-// 把文本里的 #画板 / #狼人杀 / #世界 / #五子棋 替换成链接
-function renderLinks(text){
-  // 固定同步：画板固定进 Draw 1 房间，狼人杀固定进 Play 1 房间，世界固定进 World 1 房间，五子棋固定进 Go 1房间，仅带昵称
-  const nameQ = encodeURIComponent(myName||"匿名");
-  const boardUrl = `board.html?room=${encodeURIComponent("Draw 1")}&name=${nameQ}`;
-  const wolfUrl = `wolf.html?room=${encodeURIComponent(roomId || roomInput.value.trim() || "Chat 1")}&name=${nameQ}`;
-  const worldUrl = `world.html?room=${encodeURIComponent("World 1")}&name=${nameQ}`;
-  const goUrl = `go.html?room=${encodeURIComponent("Go 1")}&name=${nameQ}`;
-  let out = esc(text);
-  out = out.replace(/#画板/g, `<a target="_blank" class="board-link" href="${boardUrl}">#画板</a>`);
-  out = out.replace(/#狼人杀/g, `<a target="_blank" class="wolf-link" href="${wolfUrl}">#狼人杀</a>`);
-  out = out.replace(/#世界/g, `<a target="_blank" class="world-link" href="${worldUrl}">#世界</a>`);
-  out = out.replace(/#五子棋/g, `<a target="_blank" class="go-link" href="${goUrl}">#五子棋</a>`);
-  return out;
+nickInput.addEventListener("keydown",e=>{
+  if(e.key!=="Enter")return;
+  const n=nickInput.value.trim();
+  if(!n)return;
+  if(matchPat([2,2])){taps=[];codeInput.style.display="block";codeInput.focus();}
+  else{taps=[];boot(n);}
+});
+codeInput.addEventListener("keydown",async e=>{
+  if(e.key!=="Enter")return;
+  const n=nickInput.value.trim();
+  codeInput.value="";codeInput.style.display="none";
+  if(!n)return;
+  pendingClaimHash=await sha256(codeInput.dataset.lastCode||"");
+  boot(n);
+});
+// 保存明文 code 的引用用于哈希（输入即取）
+codeInput.addEventListener("input",()=>{codeInput.dataset.lastCode=codeInput.value;});
+
+/* ============ 启动：默认连 MainRoom，连不上交给用户 ============ */
+function boot(n){
+  myName=n;localStorage.setItem("chat_nick",n);nameInput.value=n;
+  gate.style.display="none";
+  const qp=new URLSearchParams(location.search);
+  const qRoom=(qp.get("room")||"").trim();
+  roomId=qRoom||localStorage.getItem("chat_room")||"MainRoom";
+  roomInput.value=roomId;
+  addSystemMsg("🚀 正在连接房间「"+roomId+"」…（失败可点上方「连接主房间」重试，或自己创建房间当主机）");
+  tryJoin(roomId,{auto:true});
 }
-function addMessage(time, name, text, type="msg-other"){
-  const div = document.createElement("div");
-  div.className = `msg ${type}`;
-  div.innerHTML = `<span class="time">[${time}]</span>【${esc(name)}】${renderLinks(text)}`;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
+
+/* ============ 状态丸 ============ */
+function setPill(mode,text){
+  statusPill.className=mode;
+  statusPill.textContent=text;
 }
-function addSystemMsg(text){
-  const div = document.createElement("div");
-  div.className = "msg msg-system";
-  div.textContent = text;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
+function refreshPill(){
+  if(roomClosed){setPill("offline",LANG==="en"?"Room closed":"房间已关闭");return;}
+  if(isHost){const n=[...members.values()].filter(m=>!m.cs).length;setPill("host",`👑 主机 · ${roomId} · ${n+1} 人在线`);}
+  else if(connected()){setPill("member",`🔵 ${roomId} · ${(window._roster?window._roster.list.length+1:1)} 人在线`);}
+  else setPill("offline",LANG==="en"?"Not connected":"未连接");
 }
-function sendChatMessage(content){
-  if(!content.trim()) return;
-  const msgData = {type:"chat", name: myName, text: content.trim()};
+function connected(){
+  if(isHost)return true;
+  const c=connections.get(roomId);
+  return !!(c&&c.open);
+}
+
+/* ============ 成员列表 ============ */
+function amIAdmin(){
+  if(isHost)return true;
+  if(sessionStorage.getItem("chat_admin")==="1")return true;
+  const r=window._roster;
+  if(r&&myId){const m=r.list.find(x=>x.id===myId);return !!(m&&m.admin);}
+  return false;
+}
+function renderRoster(){
+  const selfEntry={id:isHost?"(host)":myId,name:myName+(LANG==="en"?" (you)":"（你）"),me:true,admin:isHost||amIAdmin(),host:isHost};
+  let list=[];
   if(isHost){
-    hostReceiveMsg(msgData);
+    list=[selfEntry,...[...members.entries()].filter(([id,m])=>!m.cs).map(([id,m])=>({id,name:m.name,admin:m.admin}))];
   }else{
-    const hostConn = connections.get(roomId);
-    if(hostConn && hostConn.open){
-      hostConn.send(msgData);
-    }else{
-      addSystemMsg("❌ 未连接主机，发送失败");
+    const r=window._roster;
+    list=[selfEntry,...(r?r.list.filter(m=>m.id!==myId):[])];
+  }
+  memberListEl.innerHTML="";
+  list.forEach(m=>{
+    const chip=document.createElement("span");
+    chip.className="mchip"+(m.me?" me":"")+(m.admin?" admin":"")+(m.host?" hostchip":"");
+    chip.textContent=m.name;
+    if(m.host)chip.innerHTML+=" <span class='badge'>👑</span>";
+    else if(m.admin)chip.innerHTML+=" <span class='badge'>🛡</span>";
+    const canManage=(isHost||amIAdmin())&&!m.me;
+    if(canManage){
+      chip.classList.add("clickable");
+      chip.onclick=(ev)=>openMemMenu(m,ev);
+    }
+    memberListEl.appendChild(chip);
+  });
+  memCount.textContent=list.length;
+  $("memHint").textContent=(isHost||amIAdmin())?(LANG==="en"?"Click a member to manage":"点击成员可管理"):"";
+  $("hostBar").style.display=isHost?"flex":"none";
+  $("idleBtn").style.display=isHost?"":"none";
+  refreshPill();
+}
+/* 成员操作菜单 */
+const memMenu=$("memMenu");
+function closeMemMenu(){memMenu.style.display="none";}
+document.addEventListener("click",e=>{if(!memMenu.contains(e.target))closeMemMenu();});
+function openMemMenu(m,ev){
+  ev.stopPropagation();
+  const iAmHost=isHost,iAmAdmin=amIAdmin();
+  memMenu.querySelector(".mmTitle").textContent=m.name;
+  memMenu.innerHTML='<div class="mmTitle">'+esc(m.name)+'</div>';
+  const add=(label,fn,cls)=>{
+    const b=document.createElement("button");
+    b.textContent=label;b.className=cls||"";
+    b.onclick=()=>{closeMemMenu();fn();};
+    memMenu.appendChild(b);
+  };
+  if(iAmHost||iAmAdmin){
+    // 转让/授予管理员：admin 只能授予（转让），host 可授予可收回
+    if(iAmHost){
+      add(m.admin?(LANG==="en"?"Revoke admin":"收回管理员"):(LANG==="en"?"Grant admin":"设为管理员"),()=>sendToHost({type:"adminSet",id:m.id,on:!m.admin}));
+    }else if(!m.admin){
+      add(LANG==="en"?"Transfer admin to TA":"转让管理员给 TA",()=>sendToHost({type:"adminSet",id:m.id,on:true}));
+    }
+    if(iAmHost||(iAmAdmin&&!m.admin)){
+      add(LANG==="en"?"Kick":"踢出",()=>{
+        if(!confirm((LANG==="en"?"Kick ":"踢出 ")+m.name+"？"))return;
+        sendToHost({type:"adminKick",id:m.id});
+      },"danger");
     }
   }
-  msgInput.value = "";
+  memMenu.style.display="flex";
+  const r=memMenu.getBoundingClientRect();
+  memMenu.style.left=Math.min(ev.clientX,window.innerWidth-r.width-10)+"px";
+  memMenu.style.top=Math.min(ev.clientY,window.innerHeight-r.height-10)+"px";
 }
-function hostReceiveMsg(msgData){
-  const timeStr = formatTime(new Date());
-  const fullMsg = {type:"chat", name: msgData.name, text: msgData.text, time: timeStr};
-  addMessage(timeStr, msgData.name, msgData.text, msgData.name===myName?"msg-self":"msg-other");
-  showNotification(`来自${msgData.name}`, msgData.text);
+function sendToHost(o){
+  if(isHost){hostHandleMsg(myId,o);return;}
+  const c=connections.get(roomId);
+  if(c&&c.open)c.send(o);
+  else addSystemMsg(LANG==="en"?"❌ Not connected":"❌ 未连接主机");
+}
+
+/* ============ 聊天 ============ */
+function formatTime(d){return d.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"});}
+function currentRoom(){
+  return (roomId||roomInput.value.trim()||"MainRoom");
+}
+function renderLinks(text){
+  const nameQ=encodeURIComponent(myName||"匿名");
+  const rid=encodeURIComponent(currentRoom());
+  const boardUrl=`board.html?room=${rid}-draw&name=${nameQ}`;
+  const wolfUrl=`wolf.html?room=${rid}&name=${nameQ}`;
+  const worldUrl=`world.html?room=${rid}-world&name=${nameQ}`;
+  const goUrl=`go.html?room=${rid}&name=${nameQ}`;
+  const csUrl=`cs.html?room=${rid}&name=${nameQ}`;
+  let out=esc(text);
+  out=out.replace(/#画板|#board/g,`<a target="_blank" class="board-link" href="${boardUrl}">#画板</a>`);
+  out=out.replace(/#狼人杀|#wolf/g,`<a target="_blank" class="wolf-link" href="${wolfUrl}">#狼人杀</a>`);
+  out=out.replace(/#世界|#world/g,`<a target="_blank" class="world-link" href="${worldUrl}">#世界</a>`);
+  out=out.replace(/#五子棋|#go\b/g,`<a target="_blank" class="go-link" href="${goUrl}">#五子棋</a>`);
+  out=out.replace(/#CS|#cs\b/g,`<a target="_blank" class="cs-link" href="${csUrl}">#CS</a>`);
+  return out;
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function addMessage(time,name,text,type){
+  type=type||"msg-other";
+  const sig=name+"|"+text;
+  const now=Date.now();
+  if(sig===lastSig&&now-lastSigT<900)return;
+  lastSig=sig;lastSigT=now;
+  const div=document.createElement("div");
+  div.className="msg "+type;
+  div.innerHTML=`<span class="time">[${time}]</span>【${esc(name)}】${renderLinks(text)}`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop=chatBox.scrollHeight;
+}
+function addSystemMsg(text){
+  const div=document.createElement("div");
+  div.className="msg msg-system";div.textContent=text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop=chatBox.scrollHeight;
+}
+function showNotification(title,body){
+  if(!notificationEnabled||!document.hidden)return;
+  if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body});
+}
+function sendChatMessage(content){
+  if(roomClosed)return;
+  if(!content.trim())return;
+  const msgData={type:"chat",name:myName,text:content.trim()};
+  if(isHost){hostReceiveMsg(myId,msgData);}
+  else{
+    const c=connections.get(roomId);
+    if(c&&c.open)c.send(msgData);
+    else addSystemMsg(LANG==="en"?"❌ Not connected to host":"❌ 未连接主机，发送失败");
+  }
+  msgInput.value="";
+}
+
+/* ============ 主机端处理（所有消息统一到这里） ============ */
+function hostReceiveMsg(fromId,msgData){
+  const timeStr=formatTime(new Date());
+  addMessage(timeStr,msgData.name,msgData.text,msgData.name===myName?"msg-self":"msg-other");
+  showNotification(`来自${msgData.name}`,msgData.text);
+  broadcastAll({type:"chat",name:msgData.name,text:msgData.text,time:timeStr},fromId);
+}
+function broadcastAll(obj,exceptId){
   for(const [id,conn] of connections){
-    if(conn.open) conn.send(fullMsg);
+    if(id===exceptId)continue;
+    if(conn.open)try{conn.send(obj);}catch(e){}
   }
 }
-createBtn.onclick = ()=>{
-  myName = nameInput.value.trim();
-  roomId = roomInput.value.trim();
-  if(!myName) return alert("请填写昵称！");
-  if(!roomId) return alert("填写房间ID");
-  isHost = true;
-  statusEl.textContent = `✅ 主机，房间：${roomId}，昵称：${myName}`;
-  peer = new Peer(roomId);
-  peer.on('open', ()=>{ addSystemMsg("✅ 聊天室房间创建成功"); });
-  peer.on('error', err=>{ alert("Peer错误："+err); statusEl.textContent="主机出错"; });
-  peer.on('connection', conn=>{
-    connections.set(conn.peer, conn);
-    addSystemMsg(`📢 新用户接入，在线：${connections.size}人`);
-    statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
-    conn.on('data', data=>{ if(data.type === "chat") hostReceiveMsg(data); });
-    conn.on('close',()=>{
-      connections.delete(conn.peer);
-      addSystemMsg(`📢 用户离开，在线：${connections.size}人`);
-      statusEl.textContent = `✅ 主机在线人数：${connections.size}`;
-    });
+function broadcastRoster(){
+  const list=[...members.entries()].filter(([id,m])=>!m.cs).map(([id,m])=>({id,name:m.name,admin:m.admin}));
+  hostOrder=["(host)",...list.map(m=>m.id)];
+  broadcastAll({type:"roster",list,order:hostOrder});
+  renderRoster();
+}
+/* 主机对管理类消息的权限校验 */
+function hostHandleMsg(fromId,data){
+  const sender=members.get(fromId);
+  const senderAdmin=sender?!!sender.admin:false;
+  if(data.type==="adminClaim"){
+    if(data.hash===ADMIN_HASH&&sender){
+      sender.admin=true;
+      broadcastAll({type:"sys",text:`🛡 ${sender.name} 成为管理员`});
+      broadcastRoster();
+    }
+    return;
+  }
+  if(data.type==="adminSet"){
+    const target=members.get(data.id);
+    if(!target)return;
+    const isSelfHost=fromId===myId;
+    if(isSelfHost||(senderAdmin&&!target.admin)){
+      target.admin=!!data.on;
+      broadcastAll({type:"sys",text:`🛡 ${target.name} ${target.admin?"成为管理员":"被取消管理员"}`});
+      broadcastRoster();
+    }
+    return;
+  }
+  if(data.type==="adminKick"){
+    const target=members.get(data.id);
+    if(!target)return;
+    const isSelfHost=fromId===myId;
+    if(isSelfHost||(senderAdmin&&!target.admin))doKick(data.id);
+    return;
+  }
+  if(data.type==="adminClose"){
+    if(fromId===myId)doClose();
+    return;
+  }
+  /* 频道消息：cs 走主机权威引擎，其余频道暂原样转发 */
+  if(data.ch==="cs"){CS.handle(fromId,data);return;}
+  if(data.ch&&data.ch!=="chat"){broadcastAll(data,fromId);return;}
+}
+function doKick(id){
+  const c=connections.get(id);
+  const m=members.get(id);
+  const n=m?m.name:"?";
+  if(c){try{c.send({type:"kicked"});}catch(e){}c.close();}
+  members.delete(id);connections.delete(id);
+  broadcastRoster();
+  addSystemMsg(`【${n}】被移出房间`);
+  broadcastAll({type:"sys",text:`【${n}】被移出房间`});
+}
+function doClose(){
+  addSystemMsg("⛔ 房间已被管理员关闭");
+  broadcastAll({type:"sys",text:"⛔ 房间已被管理员关闭"});
+  broadcastAll({type:"adminClosed"});
+  roomClosed=true;refreshPill();
+  setTimeout(()=>{
+    for(const [id,c] of connections){try{c.close();}catch(e){}}
+    try{peer.destroy();}catch(e){}
+    peer=null;
+  },2000);
+}
+
+/* ============================================================
+   CS 战术回合 · 主机权威引擎（第二期：随主房间主机运行）
+   频道协议：客户端发 {ch:'cs',type:...}，主机回 {ch:'cs',type:...}
+   ============================================================ */
+const CSW={ /* id:[名,层,阵营0双1T2CT,价,伤,rpm,移速u/s,穿透,爆头倍,击杀奖励,霰弹,穿墙] */
+ glock:["格洛克",1,1,200,30,400,240,.47,4,300,1,1],dual:["双枪",1,0,300,38,500,240,.575,4,300,1,1],
+ p250:["P250",1,0,300,38,400,240,.64,4,300,1,1],tec9:["Tec-9",1,1,500,33,500,240,.906,4,300,1,1],
+ usp:["USP-S",1,2,200,35,353,240,.505,4,300,1,1],fn57:["Five-Seven",1,2,500,32,400,240,.911,4,300,1,1],
+ deagle:["沙鹰",1,0,700,53,267,250,.932,3.9,300,1,2],
+ nova:["新星",2,0,1050,26,68,220,.5,4,900,9,0],mp9:["MP9",2,0,1250,26,857,240,.6,4,600,1,1],
+ mp5:["MP5-SD",2,0,1400,28,750,235,.625,4,600,1,1],p90:["P90",2,0,2350,26,857,230,.69,4,300,1,1],
+ negev:["内格夫",2,0,1700,35,800,150,.71,4,300,1,2],
+ galil:["加利尔",3,1,1800,30,667,215,.775,4,300,1,2],ak:["AK-47",3,1,2700,36,600,215,.775,4,300,1,2],
+ sg553:["SG553",3,1,3000,30,545,210,1,4,300,1,2],scout:["Scout",3,1,1700,88,48,230,.85,4,300,1,2.5],
+ awp:["AWP",3,0,4750,115,41,200,.975,4,100,1,2.5],famas:["FAMAS",3,2,1950,30,667,220,.7,4,300,1,2],
+ m4a1s:["M4A1-S",3,2,2900,38,600,225,.7,3.475,300,1,2],m4a4:["M4A4",3,2,2900,33,667,225,.7,4,300,1,2],
+ aug:["AUG",3,2,3300,28,600,220,.9,4,300,1,2]};
+const CSN={flash:["闪光弹",200,1500,2],smoke:["烟雾弹",300,1000,1],he:["手雷",300,1500,1],
+ fire_t:["燃烧瓶",400,500,1,1],fire_ct:["燃烧弹",600,500,1,2]};
+const CSE={start:800,winElim:3250,winDef:3500,lossBase:1400,lossStep:500,lossMax:3400,plantTeam:800,planter:300,defuser:300,armor:650,helmet:350,kit:400,max:16000};
+const CSR={apPhase:5000,planSecs:20,settleSecs:5,postAP:1000,settlePost:2,fuse:40000,plant:3200,defuse:10000,kitDefuse:5000,
+ holdMin:800,hsBase:.4,hsPer:.0002,hsMax:.8,flashKeep:.7,smokeHS:.9,smokeR:4,smokeClose:1.5,smokeDur:13000,heSlow:.45,heSlowAP:5000,
+ stopAP:300,runMove:.75,vision:45,hearStep:22,range:45,throwMax:25,throwSpeed:15,drawAP:500,bombR:1.6};
+const CSMAP={name:"Dust2",size:80,
+ open:[[3,3,21,21],[24,8,16,6],[33,4,14,12],[38,15,8,9],[34,24,12,38],[24,16.5,10.5,3],[3,24,11,43],[14,60,18.5,7],[32,62,18,14],[48,56,10,20],[58,56,16,6],[64,24,8,32],[56,3,21,21],[46,8,11,6]],
+ walls:[[34,24,4,2,1],[42,24,4,2,1],[3,44,3.5,2,1],[10.5,44,3.5,2,1],[46,10,3,2,1],[54,10,3,2,1]],
+ sites:{A:[8,8,11,11],B:[60,8,12,11]},
+ spawns:{T:[[36,68],[40,70],[44,68],[38,74],[42,74],[46,72],[34,72],[48,68],[40,66],[44,66]],
+         CT:[[36,8],[40,6],[44,8],[38,12],[42,12],[47,14],[34,10],[44,14],[38,9],[42,9]]}};
+/* ---- 0.25m 栅格（0墙 1空地 2门） ---- */
+const CSG={cell:.25,n:0,g:null};
+function csGridInit(){
+  const n=Math.round(CSMAP.size/CSG.cell);CSG.n=n;CSG.g=new Uint8Array(n*n);
+  for(let gy=0;gy<n;gy++)for(let gx=0;gx<n;gx++){
+    const x=(gx+.5)*CSG.cell,y=(gy+.5)*CSG.cell;let v=0;
+    for(const w of CSMAP.walls)if(x>w[0]&&x<w[0]+w[2]&&y>w[1]&&y<w[1]+w[3]){v=2;break;}
+    if(!v)for(const o of CSMAP.open)if(x>=o[0]-.2&&x<=o[0]+o[2]+.2&&y>=o[1]-.2&&y<=o[1]+o[3]+.2){v=1;break;}
+    CSG.g[gy*n+gx]=v;
+  }
+}
+function csCell(x,y){const n=CSG.n,gx=Math.floor(x/CSG.cell),gy=Math.floor(y/CSG.cell);if(gx<0||gy<0||gx>=n||gy>=n)return 0;return CSG.g[gy*n+gx];}
+function csLos(x1,y1,x2,y2,smokes){
+  const d=Math.hypot(x2-x1,y2-y1),steps=Math.ceil(d/.25);
+  for(let i=1;i<steps;i++){
+    const x=x1+(x2-x1)*i/steps,y=y1+(y2-y1)*i/steps;
+    if(csCell(x,y)!==1)return false;
+    if(smokes)for(const s of smokes)if(Math.hypot(x-s.x,y-s.y)<s.r)return false;
+  }
+  return true;
+}
+function csBulletLos(x1,y1,x2,y2){
+  const d=Math.hypot(x2-x1,y2-y1),steps=Math.ceil(d/.25);let pen=0;
+  for(let i=1;i<steps;i++){const c=csCell(x1+(x2-x1)*i/steps,y1+(y2-y1)*i/steps);if(c===0)return -1;if(c===2)pen++;}
+  return pen;
+}
+function inSite(x,y){for(const k of["A","B"]){const s=CSMAP.sites[k];if(x>=s[0]&&x<=s[0]+s[2]&&y>=s[1]&&y<=s[1]+s[3])return k;}return null;}
+/* ---- BFS 寻路（BOT 用，4 邻接 + 方向变化抽稀） ---- */
+const CSB={par:null,q:null,vis:null};
+function csPath(x0,y0,x1,y1){
+  const n=CSG.n;
+  if(!CSB.par){CSB.par=new Int32Array(n*n);CSB.q=new Int32Array(n*n);CSB.vis=new Int32Array(n*n);}
+  const g=CSG.g,par=CSB.par,q=CSB.q,vis=CSB.vis;
+  vis.fill(0);
+  let ti=Math.floor(y1/CSG.cell)*n+Math.floor(x1/CSG.cell);
+  if(g[ti]!==1){ /* 目标不可走：找 8 邻域内最近可走格 */
+    let found=-1;const tx=Math.floor(x1/CSG.cell),ty=Math.floor(y1/CSG.cell);
+    outer:for(let r=1;r<=8;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+      const nx=tx+dx,ny=ty+dy;if(nx<0||ny<0||nx>=n||ny>=n)continue;
+      const ii=ny*n+nx;if(g[ii]===1){found=ii;break outer;}
+    }
+    if(found<0)return null;ti=found;
+  }
+  const si=Math.floor(y0/CSG.cell)*n+Math.floor(x0/CSG.cell);
+  if(g[si]!==1)return null;
+  let qh=0,qt=0;q[qt++]=si;par[si]=si;vis[si]=1;
+  const DIRS=[1,-1,n,-n];
+  while(qh<qt){
+    const c=q[qh++];
+    if(c===ti)break;
+    const cx=c%n,cy=(c/n)|0;
+    for(const dd of DIRS){
+      const nx2=cx+(dd===1?1:dd===-1?-1:0),ny2=cy+(dd===n?1:dd===-n?-1:0);
+      if(nx2<0||ny2<0||nx2>=n||ny2>=n)continue;
+      const nc=ny2*n+nx2;
+      if(vis[nc]||g[nc]!==1)continue;
+      vis[nc]=1;par[nc]=c;q[qt++]=nc;
+    }
+  }
+  if(!vis[ti])return null;
+  const cells=[];let c=ti;
+  while(c!==par[c]){cells.push(c);c=par[c];}
+  cells.push(c);cells.reverse();
+  /* 抽稀：只保留转向点与终点 */
+  const pts=[];let pdir=null;
+  for(let i=1;i<cells.length;i++){
+    const a=cells[i-1],b=cells[i];
+    const dx=(b%n)-(a%n),dy=((b/n)|0)-((a/n)|0);
+    const dir=dx+","+dy;
+    const m=((a%n)+.5)*CSG.cell,my=(((a/n)|0)+.5)*CSG.cell;
+    if(pdir===null){pts.push([m,my]);}
+    if(dir!==pdir){if(pdir!==null)pts.push([m,my]);pdir=dir;}
+  }
+  const last=cells[cells.length-1];
+  pts.push([((last%n)+.5)*CSG.cell,(((last/n)|0)+.5)*CSG.cell]);
+  return pts.length>1?pts:null;
+}
+
+function wFire(w){return Math.round(60000/CSW[w][5]);}
+function wApm(w){return 1000/(CSW[w][6]*.0254);}
+function wRunMult(w){const t=CSW[w][1];return t===1?.65:t===2?.75:.45;}
+
+const CS={stage:"idle",players:new Map(),watch:new Set(),round:0,scoreT:0,scoreCT:0,phase:0,
+ planted:false,fuseLeft:0,bomb:null,plans:{},guess:{},vote:{},dropped:[],uid:1,botN:0,timers:[],smokes:[],fires:[],init:false,
+ tm(fn,ms){const t=setTimeout(fn,ms);this.timers.push(t);return t;},
+ clearTm(){this.timers.forEach(clearTimeout);this.timers=[];},
+ parts(){return[...this.players.values()].filter(p=>!this.watch.has(p.id));},
+ alive(){return this.parts().filter(p=>p.alive);},
+ send(obj,pred){for(const id of this.players.keys()){if(pred&&!pred(id))continue;const c=connections.get(id);if(c&&c.open)try{c.send(Object.assign({ch:"cs"},obj));}catch(e){}}},
+ broadcast(o){this.send(o);},
+ rosterMsg(){
+  const ps=this.parts().map(p=>({id:p.id,name:p.name,side:p.side,money:p.money,hp:Math.round(p.hp),alive:p.alive,x:p.x,y:p.y,face:p.face,
+   loadout:(p.weapons||[]).map(w=>CSW[w.id][0]+(w.tag==="init"?"★":"")).join("/"),nades:(p.nades||[]).slice(),
+   weapons:(p.weapons||[]).map(w=>({uid:w.uid,id:w.id,tag:w.tag})),cur:p.cur,armor:Math.round(p.armor),helmet:p.helmet,kit:p.kit}));
+  return{type:"csRoster",stage:this.stage,players:ps,watchers:[...this.watch],round:this.round,scoreT:this.scoreT,scoreCT:this.scoreCT,
+   phase:this.phase,planted:this.planted,fuseLeft:this.fuseLeft,bomb:this.bomb,dropped:this.dropped};
+ },
+ pushRoster(){this.broadcast(this.rosterMsg());},
+ setStage(s,extra){this.clearTm();this.stage=s;this.broadcast(Object.assign({type:"csStage",stage:s},extra));this.pushRoster();},
+ handle(id,d){
+  if(!this.init){csGridInit();this.init=true;}
+  const p=this.players.get(id);
+  switch(d.type){
+   case"csJoin":{
+    const had=this.players.has(id);
+    if(!p)this.players.set(id,{id,name:String(d.name||"?").slice(0,16),side:null,money:CSE.start,hp:100,armor:0,helmet:false,kit:false,
+      alive:false,weapons:[],cur:null,nades:[],x:0,y:0,face:0,_ls:0});
+    const q=this.players.get(id);q.name=String(d.name||q.name).slice(0,16);
+    if(this.stage==="idle"||this.stage==="lobby"){
+     this.watch.delete(id);
+     if(this.parts().length>10)this.watch.add(id);
+    }else this.watch.add(id);
+    this.send({type:"csInit",weapons:CSW,nades:CSN,econ:CSE,rules:CSR,map:CSMAP},cid=>cid===id);
+    this.pushRoster();
+    break;}
+   case"csLeave":this.players.delete(id);this.watch.delete(id);this.pushRoster();break;
+   case"csAddBot":this.addBot();break;
+   case"csRemoveBot":this.removeBot();break;
+   case"csStart":this.start();break;
+   case"guess":if(this.stage==="guess"&&p&&!this.watch.has(id)){this.guess[id]={n:Math.max(1,Math.min(100,Math.round(+d.n||0))),ts:d.ts||Date.now()};this.resolveGuess();}break;
+   case"buy":if(this.stage==="buy"&&p)this.applyBuy(id,d.items);break;
+   case"plan":if(this.stage==="plan"&&p&&p.alive&&!this.watch.has(id)){this.plans[id]=d.plan;this.checkPlans();}break;
+   case"vote":if(this.stage==="vote"&&p&&!this.watch.has(id)){this.vote[id]=Math.max(0,Math.min(2,Math.round(+d.tickets||0)));this.resolveVote();}break;
+  }
+ },
+ start(){
+  let P=this.parts().filter(p=>!this.watch.has(p.id));
+  if(P.length<2||P.length%2!==0){this.broadcast({type:"csMsg",text:"需要偶数名玩家（2-10）才能开始"});return;}
+  P.sort((a,b)=>a.id<b.id?-1:1).forEach((p,i)=>{p.side=i%2?"CT":"T";this.resetHalf(p);});
+  this.scoreT=0;this.scoreCT=0;this.guess={};
+  this.setStage("guess",{total:P.length});
+  this.broadcast({type:"csMsg",text:"选边阶段：每人猜 1-100，队内精确平均，离系统随机数近的队选边（平局比平均提交时间）"});
+  this.tm(()=>this.botGuessAll(),1000);
+ },
+ defaultPistol(side){return side==="T"?"glock":"usp";},
+ resetHalf(p){p.money=CSE.start;p.hp=100;p.armor=0;p.helmet=false;p.kit=false;p.alive=true;
+  p.weapons=[{uid:this.uid++,id:this.defaultPistol(p.side),tag:"init"}];p.cur=p.weapons[0].uid;p.nades=[];p._ls=0;},
+ spawns(){["T","CT"].forEach(s=>{this.parts().filter(p=>p.side===s&&!this.watch.has(p.id)).forEach((p,i)=>{
+   const sp=CSMAP.spawns[s][i%10];p.x=sp[0];p.y=sp[1];p.face=s==="T"?0:180;});});},
+ resolveGuess(){
+  const P=this.parts().filter(p=>!this.watch.has(p.id));
+  if(Object.keys(this.guess).length<P.length){this.broadcast({type:"csGuessCnt",n:Object.keys(this.guess).length,total:P.length});return;}
+  const sys=1+Math.floor(Math.random()*100);
+  const avg=s=>P.filter(p=>p.side===s).reduce((a,p)=>a+this.guess[p.id].n,0)/P.filter(p=>p.side===s).length;
+  const aT=avg("T"),aC=avg("CT");let winner;
+  if(Math.abs(aT-sys)!==Math.abs(aC-sys))winner=Math.abs(aT-sys)<Math.abs(aC-sys)?"T":"CT";
+  else{const ts=s=>P.filter(p=>p.side===s).reduce((a,p)=>a+this.guess[p.id].ts,0)/P.filter(p=>p.side===s).length;winner=ts("T")<ts("CT")?"T":"CT";}
+  P.forEach(p=>{p.side=p.side===winner?"T":"CT";this.resetHalf(p);});
+  this.spawns();
+  this.broadcast({type:"csGuessResult",sys,avgT:+aT.toFixed(2),avgCT:+aC.toFixed(2),winner});
+  this.startRound(1);
+ },
+ isPistol(r){return r===1||r===5;},
+ startRound(r){
+  this.round=r;this.phase=0;this.planted=false;this.bomb=null;this.fuseLeft=CSR.fuse;this.dropped=[];
+  const P=this.parts().filter(p=>!this.watch.has(p.id));
+  if(this.isPistol(r))P.forEach(p=>this.resetHalf(p));
+  else P.forEach(p=>{p.weapons.forEach(w=>{if(w.tag==="bought")w.tag="kept";});p.hp=100;p.alive=true;
+   if(!p.weapons.length){p.weapons=[{uid:this.uid++,id:this.defaultPistol(p.side),tag:"init"}];p.cur=p.weapons[0].uid;}});
+  this.spawns();
+  this.setStage("buy",{round:r,pistol:this.isPistol(r),secs:20});
+  this.tm(()=>this.botBuyAll(),1500);
+  this.tm(()=>this.planPhase(1),20000);
+ },
+ applyBuy(id,items){
+  const p=this.players.get(id);if(!p||this.watch.has(id))return;
+  const pistol=this.isPistol(this.round),side=p.side==="T"?1:2;
+  const notes=[];
+  for(const it of items||[]){
+   if(it.op==="sell"){const w=p.weapons.find(x=>x.uid===it.uid);
+    if(!w||w.tag!=="bought"){notes.push("只能出售本回合购买的武器");continue;}
+    if(CSW[w.id][2]!==0&&CSW[w.id][2]!==side){notes.push("只能出售本阵营武器");continue;}
+    p.money+=CSW[w.id][3];p.weapons=p.weapons.filter(x=>x.uid!==it.uid);
+    if(p.cur===it.uid)p.cur=p.weapons[0]?p.weapons[0].uid:null;continue;}
+   const wid=it.id;
+   if(wid==="armor"){if(p.armor>=100)notes.push("护甲已满");else if(p.money<CSE.armor)notes.push("钱不够：护甲 $"+CSE.armor+"（现有 $"+p.money+"）");else{p.money-=CSE.armor;p.armor=100;}continue;}
+   if(wid==="helmet"){if(p.helmet)notes.push("已有头盔");else if(p.money<CSE.helmet)notes.push("钱不够：头盔 $"+CSE.helmet+"（现有 $"+p.money+"）");else{p.money-=CSE.helmet;p.helmet=true;p.armor=Math.max(p.armor,100);}continue;}
+   if(wid==="kit"){if(p.side!=="CT")notes.push("只有 CT 能买拆弹钳");else if(p.kit)notes.push("已有拆弹钳");else if(p.money<CSE.kit)notes.push("钱不够：拆弹钳 $"+CSE.kit+"（现有 $"+p.money+"）");else{p.money-=CSE.kit;p.kit=true;}continue;}
+   if(CSW[wid]){const w=CSW[wid];
+    if(w[2]!==0&&w[2]!==side){notes.push(w[0]+"：阵营不符");continue;}
+    if(pistol&&w[1]>1){notes.push("手枪局只能买手枪");continue;}
+    if(p.money<w[3]){notes.push("钱不够："+w[0]+" $"+w[3]+"（现有 $"+p.money+"）");continue;}
+    p.money-=w[3];const inst={uid:this.uid++,id:wid,tag:"bought"};p.weapons.push(inst);p.cur=inst.uid;continue;}
+   if(CSN[wid]){const g=CSN[wid];
+    if(g[4]&&g[4]!==side){notes.push(g[0]+"：阵营不符");continue;}
+    if(p.nades.filter(x=>x===wid).length>=g[3]){notes.push(g[0]+"：已达携带上限");continue;}
+    if(p.money<g[1]){notes.push("钱不够："+g[0]+" $"+g[1]+"（现有 $"+p.money+"）");continue;}
+    p.money-=g[1];p.nades.push(wid);continue;}
+  }
+  if(notes.length)this.send({type:"csMsg",text:"🛒 "+notes.join("；")},cid=>cid===id);
+  this.pushRoster();
+ },
+ phaseAP(){return this.planted?CSR.postAP:CSR.apPhase;},
+ planPhase(ph){
+  this.stage="plan";this.phase=ph;this.plans={};
+  const ctl=this.planted?Math.ceil(this.phaseAP()/1000)*4:CSR.planSecs;
+  this.broadcast({type:"csStage",stage:"plan",phase:ph,ap:this.phaseAP(),planted:this.planted,fuseLeft:this.fuseLeft,burn:false,secs:ctl,round:this.round});
+  this.botPlanAll();
+  this.tm(()=>this.settle(),ctl*1000);
+ },
+ checkPlans(){
+  const alive=this.alive().filter(p=>!this.watch.has(p.id));
+  this.broadcast({type:"csPlanCnt",n:Object.keys(this.plans).length,total:alive.length});
+  if(alive.length&&alive.every(p=>this.plans[p.id]))this.settle();
+ },
+ settle(){
+  this.clearTm();this.stage="settle";
+  const ev=this.runSim(this.phaseAP());
+  if(this.planted)this.fuseLeft=Math.max(0,this.fuseLeft-this.phaseAP());
+  this.broadcast({type:"csSim",events:ev,phase:this.phase,fuseLeft:this.fuseLeft,phaseAP:this.phaseAP(),
+   snap:this.alive().map(p=>({id:p.id,x:p.x,y:p.y,face:p.face}))});
+  this.tm(()=>this.nextPhase(),(this.planted?CSR.settlePost:CSR.settleSecs)*1000);
+ },
+ runSim(apTotal){
+  const ev=[],P=this.alive().filter(p=>!this.watch.has(p.id));
+  const rt={};this.smokes=[];this.fires=[];
+  const smList=()=>this.smokes;
+  const angDiff=(a,b)=>Math.abs(((a-b+Math.PI*3)%(Math.PI*2))-Math.PI);
+  for(const p of P){
+   const plan=(this.plans[p.id]||{face:p.face,engage:"none",acts:[]});
+   const curW=(p.weapons.find(w=>w.uid===p.cur)||p.weapons[0]||{id:this.defaultPistol(p.side)}).id;
+   const r={x:p.x,y:p.y,face:(plan.face===undefined?p.face:plan.face),engage:plan.engage||"none",w:curW,
+    hold:null,nextFire:0,stopFire:false,seenAt:-1,flashUntil:0,slowUntil:0,plantAt:-1,defuseAt:-1,lastStep:-9999,path:null,moving:false};
+   const mv=(plan.acts||[]).find(a=>a.t==="move");
+   if(mv&&mv.pts&&mv.pts.length>1){
+    const pts=[[p.x,p.y]].concat(mv.pts);
+    let total=0;const segs=[];
+    for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);segs.push({fx:pts[i-1][0],fy:pts[i-1][1],tx:pts[i][0],ty:pts[i][1],d,c0:total,c1:total+d});total+=d;}
+    r.path={segs,total,apm:wApm(curW)*(plan.walk?2:1)};r.moving=true;r.walk=!!plan.walk;
+   }
+   r.acts=(plan.acts||[]).filter(a=>a.t!=="move").sort((a,b)=>(a.ap||0)-(b.ap||0));
+   rt[p.id]=r;
+  }
+  const droppedNow=this.dropped.slice();
+  const gNades=[];
+  const posAt=(r,t)=>{
+   if(!r.path||!r.moving||r.stopFire)return{x:r.x,y:r.y};
+   let target=t/r.path.apm;
+   if(t<r.slowUntil)target*=CSR.heSlow;
+   if(target>=r.path.total){r.moving=false;const s=r.path.segs[r.path.segs.length-1];r.x=s.tx;r.y=s.ty;return{x:r.x,y:r.y};}
+   for(const s of r.path.segs){
+    if(target<=s.c1){const k=s.d?(target-s.c0)/s.d:0;
+     const x=s.fx+(s.tx-s.fx)*k,y=s.fy+(s.ty-s.fy)*k;
+     if(r.moving){ /* 面朝移动方向 */
+      }
+     return{x,y};}
+   }
+   return{x:r.x,y:r.y};
+  };
+  for(let t=0;t<=apTotal;t++){
+   for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+    while(r.acts.length&&(r.acts[0].ap||0)<=t){
+     const a=r.acts.shift();
+     if(a.t==="swap"){const w=p.weapons.find(x=>x.uid===a.to);if(w){r.w=w.id;}}
+     else if(a.t==="hold"){if(apTotal-t>=CSR.holdMin&&!r.hold)r.hold={dir:a.dir,hs:0,on:true};}
+     else if(a.t==="throw"){const d=Math.min(CSR.throwMax,Math.hypot(a.x-r.x,a.y-r.y));
+      const fly=Math.round(d/CSR.throwSpeed*1000);
+      gNades.push({nade:a.nade,tx:a.x,ty:a.y,pop:t+fly+CSN[a.nade][2]});
+      ev.push({ap:t,t:"throw",id:p.id,x:r.x,y:r.y,tx:a.x,ty:a.y,nade:a.nade});}
+     else if(a.t==="plant"&&p.side==="T"&&!this.planted&&inSite(r.x,r.y)&&r.plantAt<0&&r.defuseAt<0){r.plantAt=t;ev.push({ap:t,t:"planting",id:p.id,x:r.x,y:r.y});}
+     else if(a.t==="defuse"&&p.side==="CT"&&this.planted&&this.bomb&&Math.hypot(r.x-this.bomb.x,r.y-this.bomb.y)<=CSR.bombR&&r.defuseAt<0){r.defuseAt=t;ev.push({ap:t,t:"defusing",id:p.id,x:r.x,y:r.y});}
+     else if(a.t==="loot"){const dr=droppedNow.find(dd=>dd.uid===a.uid&&dd.taken!==true);
+      if(dr&&Math.hypot(dr.x-r.x,dr.y-r.y)<1.4){
+       dr.taken=true;const old=p.weapons.find(w=>w.uid===p.cur);
+       p.weapons=p.weapons.filter(w=>w.uid!==p.cur);
+       const nw={uid:this.uid++,id:dr.wid,tag:"loot",side:dr.side};p.weapons.push(nw);p.cur=nw.uid;r.w=dr.wid;
+       if(old){droppedNow.push({uid:this.uid++,wid:old.id,x:r.x,y:r.y,side:p.side==="T"?1:2,taken:false});}
+       ev.push({ap:t,t:"loot",id:p.id,x:r.x,y:r.y,wid:dr.wid});}}
+    }
+   }
+   if(t%50===0){
+    for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+     const np=posAt(r,t);
+     if(r.moving&&!r.stopFire&&r.path){
+      const seg=r.path.segs.find(s=>t/r.path.apm>=s.c0&&t/r.path.apm<=s.c1)||r.path.segs[0];
+      r.face=Math.round(Math.atan2(seg.ty-seg.fy,seg.tx-seg.fx)*180/Math.PI);
+      if(!r.walk&&t-r.lastStep>380){r.lastStep=t;
+       const near=P.some(q=>q.alive&&q.id!==p.id&&q.side!==p.side&&Math.hypot(q.x-np.x,q.y-np.y)<CSR.hearStep);
+       if(near)ev.push({ap:t,t:"snd",kind:"step",x:np.x,y:np.y,side:p.side});}
+     }
+     r.x=np.x;r.y=np.y;
+     if(t%500===0)ev.push({ap:t,t:"pos",id:p.id,x:r.x,y:r.y,face:r.face});
+    }
+   }
+   for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+    if(t<r.flashUntil)continue;
+    if(r.plantAt>=0){if(t-r.plantAt>=CSR.plant){this.planted=true;this.bomb={x:r.x,y:r.y,site:inSite(r.x,r.y)||"A"};this.fuseLeft=CSR.fuse;r.plantAt=-1;ev.push({ap:t,t:"planted",x:r.x,y:r.y});}continue;}
+    if(r.defuseAt>=0){if(t-r.defuseAt>=(p.kit?CSR.kitDefuse:CSR.defuse)){this.defuserId=p.id;this.roundWin("CT","defuse");return ev;}continue;}
+    let faceDir=(r.hold&&r.hold.on?r.hold.dir:r.face)*Math.PI/180;
+    let tgt=null,bd=1e9;
+    for(const q of P){if(q.id===p.id||!q.alive||q.side===p.side)continue;
+     const rq=rt[q.id];const d=Math.hypot(rq.x-r.x,rq.y-r.y);
+     if(d>CSR.range)continue;
+     if(angDiff(Math.atan2(rq.y-r.y,rq.x-r.x),faceDir)>CSR.vision*Math.PI/180)continue;
+     if(!csLos(r.x,r.y,rq.x,rq.y,smList()))continue;
+     if(d<bd){bd=d;tgt=q;}}
+    if(tgt){
+     const rq=rt[tgt.id];
+     const inSm=smList().some(s=>Math.hypot(r.x-s.x,r.y-s.y)<s.r||Math.hypot(rq.x-s.x,rq.y-s.y)<s.r);
+     if(inSm&&bd>CSR.smokeClose){/* 烟中远距离打不到 */}
+     else if(r.hold&&r.hold.on&&t>=r.nextFire){r.nextFire=t+wFire(r.w);this.shoot(p,tgt,r,rq,ev,t,bd,"hold",smList());}
+     else if(r.engage==="stop"){
+      if(r.seenAt<0)r.seenAt=t;
+      else if(t-r.seenAt>=CSR.stopAP){r.stopFire=true;r.moving=false;
+       r.face=Math.round(Math.atan2(rq.y-r.y,rq.x-r.x)*180/Math.PI);
+       if(t>=r.nextFire){r.nextFire=t+wFire(r.w);this.shoot(p,tgt,r,rq,ev,t,bd,"stop",smList());}}
+     }else if(r.engage==="run"&&r.moving&&t>=r.nextFire){r.nextFire=t+wFire(r.w);this.shoot(p,tgt,r,rq,ev,t,bd,"run",smList());}
+    }else if(r.seenAt>=0&&t-r.seenAt>1200)r.seenAt=-1;
+    if(r.hold&&r.hold.on)r.hold.hs=Math.min(CSR.hsMax,r.hold.hs+CSR.hsPer);
+   }
+   for(const f of this.fires){
+    if(t<f.pop||t>f.until)continue;
+    for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+     if(Math.hypot(r.x-f.x,r.y-f.y)<f.r){
+      p.hp-=0.006;
+      if(t%1000===0)ev.push({ap:t,t:"fstep",x:r.x,y:r.y,side:p.side});
+      if(p.hp<=0){p.alive=false;r.stopFire=true;ev.push({ap:t,t:"kill",id:p.id,x:r.x,y:r.y,by:"燃烧"});this.dropWpn(p,r,ev,t);}}}
+   }
+   for(const g of gNades){
+    if(!g.done&&t>=g.pop){g.done=true;
+     if(g.nade==="flash"){
+      for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+       const d=Math.hypot(r.x-g.tx,r.y-g.ty);if(d>20)continue;
+       if(!csLos(g.tx,g.ty,r.x,r.y,null))continue;
+       let dur=0;const a=angDiff(Math.atan2(g.ty-r.y,g.tx-r.x),r.face*Math.PI/180)*180/Math.PI;
+       if(a<22.5)dur=5000;else if(a<60)dur=Math.round(4000-(a-22.5)/37.5*2500);
+       dur=Math.round(dur*Math.max(.25,1-d/20));
+       if(dur>0){r.flashUntil=Math.max(r.flashUntil,t+dur);
+        if(r.hold)r.hold.hs*=CSR.flashKeep;
+        if(r.moving&&!r.stopFire){r.moving=false;r.path=null;}
+        ev.push({ap:t,t:"flashed",id:p.id,dur});}}
+      ev.push({ap:t,t:"pop",nade:"flash",x:g.tx,y:g.ty});
+     }else if(g.nade==="smoke"){this.smokes.push({x:g.tx,y:g.ty,r:CSR.smokeR,until:t+CSR.smokeDur});ev.push({ap:t,t:"pop",nade:"smoke",x:g.tx,y:g.ty,r:CSR.smokeR});}
+     else if(g.nade==="he"){
+      for(const p of P){if(!p.alive)continue;const r=rt[p.id];
+       const d=Math.hypot(r.x-g.tx,r.y-g.ty);if(d>9)continue;
+       const dmg=Math.round(55*Math.max(0,1-d/9));
+       if(dmg>0){p.hp-=dmg;r.slowUntil=t+CSR.heSlowAP;ev.push({ap:t,t:"hedmg",id:p.id,dmg});
+        if(p.hp<=0){p.alive=false;r.stopFire=true;ev.push({ap:t,t:"kill",id:p.id,x:r.x,y:r.y,by:"手雷"});this.dropWpn(p,r,ev,t);}}}
+      ev.push({ap:t,t:"pop",nade:"he",x:g.tx,y:g.ty});
+     }else{this.fires.push({x:g.tx,y:g.ty,r:2.6,pop:t,until:t+7000});ev.push({ap:t,t:"pop",nade:"fire",x:g.tx,y:g.ty,r:2.6});}
+    }
+   }
+  }
+  for(const p of P){if(!p.alive)continue;const r=rt[p.id];p.x=Math.round(r.x*10)/10;p.y=Math.round(r.y*10)/10;p.face=r.face;}
+  this.dropped=droppedNow.filter(d=>!d.taken);
+  return ev.sort((a,b)=>a.ap-b.ap);
+ },
+ shoot(p,tgt,r,rq,ev,t,d,mode,sm){
+  const w=CSW[r.w];const pen=csBulletLos(r.x,r.y,rq.x,rq.y);
+  if(pen<0)return;
+  let dmg=w[4]*Math.max(.35,1-Math.max(0,d-12)*.012);
+  if(pen>0)dmg*=pen>1?.5:.7;
+  let hsC,hitC;
+  const inSm=sm.some(s=>Math.hypot(r.x-s.x,r.y-s.y)<s.r||Math.hypot(rq.x-s.x,rq.y-s.y)<s.r);
+  if(inSm&&d<=CSR.smokeClose){hitC=.95;hsC=CSR.smokeHS;}
+  else if(mode==="hold"){hitC=.9;hsC=Math.min(CSR.hsMax,.4+r.hold.hs);}
+  else if(mode==="stop"){hitC=.85;hsC=.3;}
+  else{hitC=.5+.3*wRunMult(r.w);hsC=.15*wRunMult(r.w);}
+  if(pen>0){hitC*=.8;}
+  if(Math.random()>hitC){ev.push({ap:t,t:"shot",id:p.id,x:r.x,y:r.y,tx:tgt.x,ty:tgt.y,hit:0,hs:false,dmg:0,kill:0,wid:r.w});return;}
+  const hs=Math.random()<hsC;
+  if(hs)dmg*=w[8];
+  /* 护甲 */
+  const absorbed=p.armor>0?Math.min(p.armor,dmg*(1-w[7])):0;
+  p.armor=Math.max(0,p.armor-absorbed);
+  dmg=Math.round(dmg*w[7]+absorbed*0.0);
+  tgt.hp-=dmg;
+  const kill=tgt.hp<=0;
+  ev.push({ap:t,t:"shot",id:p.id,x:r.x,y:r.y,tx:tgt.x,ty:tgt.y,hit:1,hs,dmg,kill,wid:r.w});
+  if(kill){tgt.alive=false;rq.stopFire=true;
+   ev.push({ap:t,t:"kill",id:tgt.id,x:rq.x,y:rq.y,by:p.name});
+   this.dropWpn(tgt,rq,ev,t);}
+ },
+ dropWpn(p,r,ev,t){
+  const w=p.weapons.find(x=>x.uid===p.cur);
+  if(w){this.dropped.push({uid:this.uid++,wid:w.id,x:r.x,y:r.y,side:p.side==="T"?1:2,taken:false});
+   p.weapons=p.weapons.filter(x=>x.uid!==p.cur);p.cur=p.weapons[0]?p.weapons[0].uid:null;
+   ev.push({ap:t,t:"drop",id:p.id,x:r.x,y:r.y,wid:w.id});}
+ },
+ /* ---------- BOT ---------- */
+ addBot(){
+  if(!["idle","lobby","matchEnd"].includes(this.stage)){this.broadcast({type:"csMsg",text:"对局进行中不能加 BOT"});return;}
+  const P=this.parts().filter(p=>!this.watch.has(p.id));
+  if(P.length>=10){this.broadcast({type:"csMsg",text:"已满 10 人"});return;}
+  const id="bot"+(++this.botN);
+  this.players.set(id,{id,name:"BOT-"+this.botN,side:null,money:CSE.start,hp:100,armor:0,helmet:false,kit:false,
+   alive:false,weapons:[],cur:null,nades:[],x:0,y:0,face:0,_ls:0,bot:true});
+  this.watch.delete(id);
+  this.broadcast({type:"csMsg",text:"🤖 "+this.players.get(id).name+" 加入"});
+  this.pushRoster();
+ },
+ removeBot(){
+  const bots=[...this.players.values()].filter(p=>p.bot);
+  if(!bots.length){this.broadcast({type:"csMsg",text:"没有 BOT"});return;}
+  const b=bots[bots.length-1];
+  this.players.delete(b.id);
+  this.broadcast({type:"csMsg",text:"🤖 "+b.name+" 移除"});
+  this.pushRoster();
+ },
+ botBuyAll(){
+  this.parts().filter(p=>p.bot&&!this.watch.has(p.id)).forEach(p=>{
+   const side=p.side==="T"?1:2,items=[];
+   if(this.isPistol(this.round)){if(p.money>=CSE.armor)items.push({op:"buy",id:"armor"});if(p.money>=200)items.push({op:"buy",id:"flash"});}
+   else{
+    if(side===1){if(p.money>=2700)items.push({op:"buy",id:"ak"});else if(p.money>=1800)items.push({op:"buy",id:"galil"});}
+    else{if(p.money>=2900)items.push({op:"buy",id:"m4a4"});else if(p.money>=1950)items.push({op:"buy",id:"famas"});}
+    if(p.money>=CSE.helmet)items.push({op:"buy",id:"helmet"});
+    if(p.side==="CT"&&!p.kit&&p.money>=CSE.kit)items.push({op:"buy",id:"kit"});
+   }
+   if(items.length)this.applyBuy(p.id,items);
   });
+ },
+ botGuessAll(){
+  this.parts().filter(p=>p.bot&&!this.watch.has(p.id)).forEach(p=>{
+   this.guess[p.id]={n:1+Math.floor(Math.random()*100),ts:Date.now()+Math.floor(Math.random()*500)};});
+  this.resolveGuess();
+ },
+ botVoteAll(){
+  this.parts().filter(p=>p.bot&&!this.watch.has(p.id)).forEach(p=>{
+   this.vote[p.id]=[0,1,2][Math.floor(Math.random()*3)];});
+  this.resolveVote();
+ },
+ botPlan(p,apTotal){
+  const acts=[];
+  const wid=(p.weapons.find(w=>w.uid===p.cur)||p.weapons[0]||{id:this.defaultPistol(p.side)}).id;
+  const apm=wApm(wid);
+  const push=(path,extra)=>{
+   if(!path||path.length<2)return false;
+   let len=0;for(let i=1;i<path.length;i++)len+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
+   const cost=Math.round(len*apm);
+   acts.push({t:"move",pts:path});
+   if(extra==="plant"&&cost+300<apTotal)acts.push({t:"plant",ap:cost+300});
+   if(extra==="defuse"&&cost+300<apTotal)acts.push({t:"defuse",ap:cost+300});
+   return true;
+  };
+  if(p.side==="T"){
+   if(!this.planted){
+    const site=Math.random()<0.5?"A":"B";const s=CSMAP.sites[site];
+    const tx=s[0]+2+Math.random()*(s[2]-4),ty=s[1]+2+Math.random()*(s[3]-4);
+    push(csPath(p.x,p.y,tx,ty),"plant");
+   }else if(this.bomb){
+    push(csPath(p.x,p.y,this.bomb.x+1.5,this.bomb.y+1.5),null);
+   }
+  }else{
+   if(this.planted&&this.bomb){
+    push(csPath(p.x,p.y,this.bomb.x,this.bomb.y),"defuse");
+   }else{
+    const site=Math.random()<0.5?"A":"B";const s=CSMAP.sites[site];
+    const path=csPath(p.x,p.y,s[0]+s[2]/2,s[1]+s[3]/2);
+    if(path&&path.length>1){
+     let len=0;for(let i=1;i<path.length;i++)len+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
+     acts.push({t:"move",pts:path});
+     const cost=Math.round(len*apm);
+     if(cost+CSR.holdMin+200<apTotal)acts.push({t:"hold",dir:site==="A"?90:270,ap:cost+200});
+    }
+   }
+  }
+  return{face:p.face,engage:"stop",walk:false,acts};
+ },
+ botPlanAll(){
+  const ap=this.planted?(this.stage==="plan"&&this.fuseLeft<1000?this.fuseLeft:this.phaseAP()):this.phaseAP();
+  this.alive().filter(p=>p.bot&&!this.watch.has(p.id)).forEach(p=>{
+   this.plans[p.id]=this.botPlan(p,ap);});
+  this.checkPlans();
+ },
+ roundWin(side,how){
+  this.clearTm();
+  const P=this.parts().filter(p=>!this.watch.has(p.id));
+  P.forEach(p=>{
+   const won=p.side===side;
+   if(won)p.money+=(how==="defuse"?CSE.winDef:CSE.winElim);
+   else{const s=p._ls=Math.min((p._ls||0)+1,5);p.money+=Math.min(CSE.lossBase+CSE.lossStep*(s-1),CSE.lossMax);if(p.side==="T"&&this.planted)p.money+=CSE.plantTeam;}
+   if(this.planterId===p.id)p.money+=CSE.planter;
+   if(this.defuserId===p.id)p.money+=CSE.defuser;
+   p.money=Math.min(p.money,CSE.max);
+  });
+  this.planterId=null;this.defuserId=null;
+  if(side==="T")this.scoreT++;else this.scoreCT++;
+  this.planted=false;this.bomb=null;
+  this.setStage("roundEnd",{winner:side,how,round:this.round,scoreT:this.scoreT,scoreCT:this.scoreCT});
+  this.tm(()=>{
+   if((this.scoreT>=5||this.scoreCT>=5||this.round>=8)&&!this._ot){
+    if(this.scoreT===this.scoreCT){this.vote={};this.setStage("vote",{scoreT:this.scoreT,scoreCT:this.scoreCT});this.tm(()=>this.botVoteAll(),1000);return;}
+    this.setStage("matchEnd",{winner:this.scoreT>this.scoreCT?"T":"CT",scoreT:this.scoreT,scoreCT:this.scoreCT});return;}
+   const nr=this.round+1;
+   if(nr===5&&!this._ot)P.forEach(p=>{p.side=p.side==="T"?"CT":"T";});
+   this.startRound(nr);
+  },6000);
+ },
+ resolveVote(){
+  const P=this.parts().filter(p=>!this.watch.has(p.id));
+  if(Object.keys(this.vote).length<P.length)return;
+  const tot=Object.values(this.vote).reduce((a,b)=>a+b,0);
+  this._ot=true;
+  if(tot<=10)this.setStage("matchEnd",{winner:"draw",scoreT:this.scoreT,scoreCT:this.scoreCT});
+  else if(tot<=15){this.broadcast({type:"csMsg",text:"平局投票 "+tot+" 票 → 加赛一局定胜负"});this.tm(()=>this.startRound(9),3000);}
+  else{this.broadcast({type:"csMsg",text:"平局投票 "+tot+" 票 → 加时赛"});this.tm(()=>this.startRound(9),3000);}
+ },
+ nextPhase(){
+  const alive=this.alive().filter(p=>!this.watch.has(p.id));
+  const tA=alive.some(p=>p.side==="T"),cA=alive.some(p=>p.side==="CT");
+  if(this.planted&&this.fuseLeft<=0){this.roundWin("T","bomb");return;}
+  if(!tA){if(this.planted){this.burnPhase();return;}this.roundWin("CT","elim");return;}
+  if(!cA){this.roundWin("T","elim");return;}
+  if(!this.planted&&this.phase>=23){this.roundWin("CT","time");return;}
+  this.planPhase(this.phase+1);
+ },
+ burnPhase(){
+  this.stage="plan";this.plans={};
+  const secs=Math.ceil(this.fuseLeft/1000)*4;
+  this.broadcast({type:"csStage",stage:"plan",phase:this.phase+1,ap:this.fuseLeft,burn:true,secs,planted:true,fuseLeft:this.fuseLeft,round:this.round});
+  this.botPlanAll();
+  this.tm(()=>this.settle(),secs*1000);
+ }
 };
-joinBtn.onclick = ()=>{
-  myName = nameInput.value.trim();
-  roomId = roomInput.value.trim();
-  if(!myName) return alert("请填写昵称！");
-  if(!roomId) return alert("填写房间ID");
-  isHost = false;
-  statusEl.textContent = "🔄 正在连接聊天室主机...";
-  peer = new Peer();
+
+/* ============ 连接：加入 ============ */
+function destroyPeer(){try{if(peer)peer.destroy();}catch(e){}peer=null;connections.clear();}
+function tryJoin(r,opts){
+  opts=opts||{};
+  const gen=++netGen;
+  roomClosed=false;
+  roomId=r;roomInput.value=r;
+  localStorage.setItem("chat_room",r);
+  isHost=false;
+  refreshPill();
+  addSystemMsg(LANG==="en"?"🔄 Connecting...":"🔄 正在连接「"+r+"」…");
+  destroyPeer();
+  peer=new Peer();
+  peer.on('open',id=>{
+    myId=id;
+    const conn=peer.connect(r,{serialization:"json",reliable:true});
+    connections.set(r,conn);
+    let opened=false;
+    const failTimer=setTimeout(()=>{
+      if(opened)return;
+      conn.close();
+      if(gen!==netGen)return;
+      refreshPill();
+      addSystemMsg(`❌ 连接「${r}」失败：找不到主机。你可以：① 点「连接主房间」稍后重试 ② 修改房间名后「创建房间」自己当主机`);
+    },9000);
+    conn.on('open',()=>{
+      opened=true;clearTimeout(failTimer);
+      refreshPill();
+      addSystemMsg("✅ 已连接房间「"+r+"」");
+      conn.send({type:"join",name:myName});
+      if(pendingClaimHash){conn.send({type:"adminClaim",hash:pendingClaimHash});pendingClaimHash=null;}
+      renderRoster();
+    });
+    conn.on('data',data=>clientOnData(data));
+    conn.on('close',()=>{if(!opened){clearTimeout(failTimer);if(gen===netGen)refreshPill();}else onHostLost(gen);});
+    conn.on('error',()=>{clearTimeout(failTimer);if(gen===netGen&&!opened)refreshPill();});
+  });
+  peer.on('error',err=>{
+    if(gen!==netGen)return;
+    if(err&&err.type==="peer-unavailable"){
+      refreshPill();
+      addSystemMsg(`❌ 房间「${r}」暂无主机。你可以自己「创建房间」当主机，或点「连接主房间」重试`);
+    }
+  });
+}
+/* 主机掉线：第一个进房的人接任主机，其余自动重连 */
+function onHostLost(gen){
+  if(gen!==netGen||roomClosed)return;
+  addSystemMsg("⚠️ 主机连接断开，正在尝试恢复…");
+  const order=(window._roster&&window._roster.order)||[];
+  const candidates=order.filter(id=>id!=="(host)");
+  const rank=candidates.indexOf(myId);
+  if(rank<0){tryRejoinLoop(gen);return;}
+  if(rank===0){
+    addSystemMsg("👑 你是第一个进房的人，正在接任主机…");
+    tryBecomeHost(gen,0);
+  }else{
+    addSystemMsg(`⏳ 等待 ${candidates[0]||"?"} 接任主机…`);
+    setTimeout(()=>tryRejoinLoop(gen),2500+rank*800);
+  }
+}
+function tryBecomeHost(gen,attempt){
+  if(gen!==netGen||roomClosed)return;
+  destroyPeer();
+  peer=new Peer(roomId);
   peer.on('open',()=>{
-    const conn = peer.connect(roomId, {serialization:"json", reliable:true});
-    connections.set(roomId, conn);
-    conn.on('open',()=>{ statusEl.textContent = "✅ 已连接聊天室，可以聊天"; addSystemMsg("✅ 成功进入聊天室"); });
-    conn.on('data', data=>{
-      if(data.type === "chat"){
-        addMessage(data.time, data.name, data.text, data.name===myName?"msg-self":"msg-other");
-        showNotification(`来自${data.name}`, data.text);
+    if(gen!==netGen)return;
+    isHost=true;myId="(host)";
+    members.clear();joinSeq=0;
+    hostStartAt=Date.now();
+    addSystemMsg(`👑 已接任「${roomId}」主机，等待其他成员重连…`);
+    setupHostAccept();
+    refreshPill();renderRoster();
+  });
+  peer.on('error',err=>{
+    if(gen!==netGen)return;
+    if(err&&(err.type==="unavailable-id"||err.type==="id-taken")){
+      if(attempt<14)setTimeout(()=>tryBecomeHost(gen,attempt+1),1500);
+      else tryRejoinLoop(gen);
+    }
+  });
+}
+function tryRejoinLoop(gen,attempt){
+  if(gen!==netGen||roomClosed||isHost)return;
+  attempt=attempt||0;
+  destroyPeer();
+  peer=new Peer();
+  peer.on('open',id=>{
+    myId=id;
+    const conn=peer.connect(roomId,{serialization:"json",reliable:true});
+    connections.set(roomId,conn);
+    conn.on('open',()=>{
+      if(gen!==netGen)return;
+      refreshPill();
+      addSystemMsg("✅ 已重连房间「"+roomId+"」");
+      conn.send({type:"join",name:myName});
+      renderRoster();
+    });
+    conn.on('data',data=>clientOnData(data));
+    conn.on('close',()=>onHostLost(gen));
+    conn.on('error',()=>{if(gen===netGen&&attempt<14)setTimeout(()=>tryRejoinLoop(gen,attempt+1),1800);});
+  });
+  peer.on('error',()=>{if(gen===netGen&&attempt<14)setTimeout(()=>tryRejoinLoop(gen,attempt+1),1800);});
+}
+
+/* ============ 连接：创建（当主机） ============ */
+function createRoom(r){
+  const gen=++netGen;
+  roomClosed=false;
+  roomId=r;roomInput.value=r;
+  localStorage.setItem("chat_room",r);
+  destroyPeer();
+  isHost=false;refreshPill();
+  addSystemMsg(LANG==="en"?"🔄 Creating room...":"🔄 正在创建房间「"+r+"」…");
+  peer=new Peer(r);
+  peer.on('open',()=>{
+    if(gen!==netGen)return;
+    isHost=true;myId="(host)";
+    members.clear();joinSeq=0;
+    hostStartAt=Date.now();
+    addSystemMsg("👑 房间「"+r+"」创建成功，你是主机");
+    setupHostAccept();
+    refreshPill();renderRoster();
+  });
+  peer.on('error',err=>{
+    if(gen!==netGen)return;
+    if(err&&(err.type==="unavailable-id"||err.type==="id-taken")){
+      addSystemMsg(`❌ 房间「${r}」已存在主机。正在尝试直接加入…`);
+      tryJoin(r);
+    }else addSystemMsg("❌ 创建失败："+(err&&err.type||"网络异常"));
+    refreshPill();
+  });
+}
+function setupHostAccept(){
+  peer.on('connection',conn=>{
+    connections.set(conn.peer,conn);
+    conn.on('data',data=>{
+      if(data.type==="join"){
+        members.set(conn.peer,{name:String(data.name||"?").slice(0,20),admin:false,j:++joinSeq,cs:!!data.cs});
+        broadcastRoster();
+        if(!data.cs){
+          addSystemMsg(`📢 ${data.name} 加入了房间`);
+          broadcastAll({type:"sys",text:`📢 ${data.name} 加入了房间`},conn.peer);
+        }
+      }
+      else if(data.type==="chat")hostReceiveMsg(conn.peer,data);
+      else hostHandleMsg(conn.peer,data);
+    });
+    conn.on('close',()=>{
+      const m=members.get(conn.peer);
+      members.delete(conn.peer);connections.delete(conn.peer);
+      CS.players.delete(conn.peer);CS.watch.delete(conn.peer);
+      broadcastRoster();
+      if(m&&!m.cs){
+        addSystemMsg(`📢 ${m.name} 离开了房间`);
+        broadcastAll({type:"sys",text:`📢 ${m.name} 离开了房间`});
       }
     });
-    conn.on('close',()=>{ addSystemMsg("❌ 断开聊天室连接"); statusEl.textContent = "❌ 断开连接"; });
-    conn.on('error',err=>{ alert("聊天室连接失败:"+err); statusEl.textContent="❌ 连接失败"; });
   });
-  peer.on('error',err=>{ alert("Peer初始化错误:"+err); statusEl.textContent="❌ Peer初始化失败"; });
+}
+
+/* ============ 客户端消息 ============ */
+function clientOnData(data){
+  if(data.type==="chat"){
+    addMessage(data.time,data.name,data.text,data.name===myName?"msg-self":"msg-other");
+    showNotification(`来自${data.name}`,data.text);
+  }
+  else if(data.type==="roster"){
+    window._roster={list:data.list,order:data.order};
+    const me=data.list.find(x=>x.id===myId);
+    if(me&&me.admin)sessionStorage.setItem("chat_admin","1");
+    renderRoster();
+  }
+  else if(data.type==="sys"){addSystemMsg(data.text);}
+  else if(data.type==="kicked"){
+    addSystemMsg("你已被管理员移出房间");
+    roomClosed=true;refreshPill();
+    setTimeout(()=>{destroyPeer();},1200);
+  }
+  else if(data.type==="adminClosed"){
+    addSystemMsg("⛔ 房间已被管理员关闭");
+    roomClosed=true;refreshPill();
+    setTimeout(()=>{destroyPeer();},1500);
+  }
+}
+
+/* ============ 按钮 ============ */
+$("joinMainBtn").onclick=()=>{
+  netGen++;
+  tryJoin("MainRoom");
 };
-sendBtn.onclick = ()=> sendChatMessage(msgInput.value);
-msgInput.addEventListener("keydown",e=>{ if(e.key === "Enter") sendChatMessage(msgInput.value); });
+$("createBtn").onclick=()=>{
+  const n=nameInput.value.trim(),r=roomInput.value.trim();
+  if(!n)return alert(LANG==="en"?"Enter nickname!":"请填写昵称！");
+  if(!r)return alert(LANG==="en"?"Enter room ID":"填写房间ID");
+  myName=n;localStorage.setItem("chat_nick",n);
+  createRoom(r);
+};
+$("joinBtn").onclick=()=>{
+  const n=nameInput.value.trim(),r=roomInput.value.trim();
+  if(!n)return alert(LANG==="en"?"Enter nickname!":"请填写昵称！");
+  if(!r)return alert(LANG==="en"?"Enter room ID":"填写房间ID");
+  myName=n;localStorage.setItem("chat_nick",n);
+  tryJoin(r);
+};
+$("closeRoomBtn").onclick=()=>{
+  if(!confirm(LANG==="en"?"Force close this room for everyone?":"确定强制关闭？所有人将被断开。"))return;
+  if(isHost)doClose();
+};
+notifyBtn.onclick=()=>{
+  if(!("Notification" in window))return;
+  Notification.requestPermission().then(p=>{
+    if(p==="granted"){notificationEnabled=true;notifyBtn.textContent=LANG==="en"?"Notifications on":"通知已开启";}
+  });
+};
+sendBtn.onclick=()=>sendChatMessage(msgInput.value);
+msgInput.addEventListener("keydown",e=>{if(e.key==="Enter")sendChatMessage(msgInput.value);});
+
+/* ============ 挂机界面 ============ */
+$("idleBtn").onclick=()=>{
+  if(!isHost)return;
+  idleMode=true;
+  $("idleScr").style.display="flex";
+  document.title="【挂机中】P2P 小站 · "+roomId;
+  updateIdleStats();
+};
+$("idleExitBtn").onclick=()=>{
+  idleMode=false;
+  $("idleScr").style.display="none";
+  document.title="P2P 小站";
+};
+let idleTimer=setInterval(()=>{if(idleMode)updateIdleStats();},1000);
+function updateIdleStats(){
+  const up=hostStartAt?Math.floor((Date.now()-hostStartAt)/60000):0;
+  $("idleStats").textContent=`房间 ${roomId} · ${members.size+1} 人在线 · 已挂机 ${up} 分钟`;
+}
+window.addEventListener("beforeunload",e=>{
+  if(idleMode&&isHost){e.preventDefault();e.returnValue="";}
+});
+
+/* ============ 启动 ============ */
+(function(){
+  const saved=localStorage.getItem("chat_nick")||"";
+  if(saved){nickInput.value=saved;nameInput.value=saved;}
+  renderRoster();
+})();
 </script>
+<!-- VersionInformation||版本信息 -->
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">index · V.T-20261118-0936</div>
 </body>
 </html>
