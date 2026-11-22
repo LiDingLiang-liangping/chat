@@ -1,0 +1,22 @@
+name: restore-snapshot-8bff6d0
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reset main tree to snapshot 8bff6d0
+        run: |
+          git config user.name "LiDingLiang-liangping"
+          git config user.email "1791204370@qq.com"
+          git reset --hard 8bff6d07da4f83aee508d2608d8b43d56498dd1f
+          git reset --soft origin/main
+          git commit -m "Restore snapshot 8bff6d0 as new commit on main"
+          git push origin HEAD:main
