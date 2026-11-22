@@ -215,17 +215,6 @@ applyLang();
 /* ============ 秘密节奏门禁（XX XX → 授权码 → adminClaim） ============ */
 const ADMIN_HASH="129589a884d88f3dc379505bb51509b9728ca8a634e068bbaebf6b58dc894b80";
 const gate=$("nickGate"),nickInput=$("nickInput"),codeInput=$("adminCodeInput");
-/* ===== 测试版设备门：仅 RTX 3070 显卡可进入（正式版删除本段） ===== */
-let gpuName="";
-try{
-  const __c=document.createElement("canvas");
-  const __gl=__c.getContext("webgl")||__c.getContext("experimental-webgl");
-  if(__gl){
-    const __ext=__gl.getExtension("WEBGL_debug_renderer_info");
-    gpuName=__ext?String(__gl.getParameter(__ext.UNMASKED_RENDERER_WEBGL)||""):String(__gl.getParameter(__gl.RENDERER)||"");
-  }
-}catch(e){}
-function devAllowed(){return gpuName.indexOf("RTX 3070")>=0;}
 let taps=[];
 function tapZone(e){if(e.target.closest("input"))return;taps.push(Date.now());if(taps.length>12)taps.shift();}
 gate.addEventListener("mousedown",tapZone);
@@ -247,7 +236,6 @@ nickInput.addEventListener("keydown",e=>{
   if(e.key!=="Enter")return;
   const n=nickInput.value.trim();
   if(!n)return;
-  if(!devAllowed()){console.log("测试版设备门：显卡["+(gpuName||"未知")+"] 非 RTX 3070，Enter 无响应");return;}
   if(matchPat([2,2])){taps=[];codeInput.style.display="block";codeInput.focus();}
   else{taps=[];boot(n);}
 });
@@ -1299,6 +1287,6 @@ window.addEventListener("beforeunload",e=>{
 })();
 </script>
 <!-- VersionInformation||版本信息 -->
-<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">index · V.T-20261118-2004</div>
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">index · V.T-20261118-0936</div>
 </body>
 </html>
