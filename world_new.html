@@ -2725,7 +2725,7 @@ function startNet(asHost){
     peer = new Peer(undefined, { debug:0 });
     peer.on('open', id=>{
       G.selfId = id;
-      hostConn = peer.connect(key, { reliable:true, serialization:'json' });
+      hostConn = peer.connect(key, { reliable:true });
       let got = false;
       const timer = setTimeout(()=>{
         if(!got) failLogin('未找到该洞天，请确认名字，或由道友先「开辟洞天」');
