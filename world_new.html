@@ -1155,7 +1155,9 @@ let loopsStarted = false;
 let mobSeq = 0;
 let projSeq = 0;
 let itemSeq = 0;
-let lastPortalsAt = 0;
+let nextPortalAt = 0;
+/* 传送门换位间隔：30–60 秒随机 */
+function portalNextDelay(){ return 30000 + Math.random()*30000; }
 let lastExpSeen = 0;
 
 </script>
@@ -3095,14 +3097,73 @@ function initItems(){
   }
 }
 
+/* 传送门落点校验：不能压在水潭、房屋、树木岩石、山门，也要离其他传送门足够远 */
+function portalSpotOk(x, y, others, minGap){
+  if(x < 240 || y < 240 || x > WORLD.w-240 || y > WORLD.h-240) return false;
+  if(dist(x, y, TOWN.x, TOWN.y) < TOWN.r + 260) return false;
+  for(const p of worldGeo.ponds){
+    const dx = (x-p.x)/(p.rx+90), dy = (y-p.y)/(p.ry+90);
+    if(dx*dx + dy*dy < 1) return false;
+  }
+  for(const o of worldGeo.obstacles){
+    if(o.type === 'house'){
+      if(Math.abs(x-o.x) < o.w/2+70 && Math.abs(y-o.y) < o.h/2+70) return false;
+    }else if(dist(x, y, o.x, o.y) < (o.r||0) + 100){   // 100 留量：取整后也不会蹭到树石
+      return false;
+    }
+  }
+  for(const s2 of worldGeo.sects){
+    if(dist(x, y, s2.x, s2.y) < 300) return false;
+  }
+  for(const pt of others){
+    if(dist(x, y, pt.x, pt.y) < minGap) return false;
+  }
+  return true;
+}
+
+/* 换位：方位角全随机，而不是原来的「五等分扇区 + 小幅抖动」 */
 function relocatePortals(){
   const els = EL_LIST.slice();
-  worldGeo.portals = els.map((el,i)=>{
-    const a = -1.1 + i*(Math.PI*2/5) + Math.random()*0.45;
-    const r = RINGS[3].r0 + 200 + Math.random()*270;
-    return { el, x: CX+Math.cos(a)*r, y: CY+Math.sin(a)*r };
-  });
-  G.portals = worldGeo.portals;
+  const band = RINGS[3];
+  const rMin = band.r0 + 200;              // 1680
+  const rSpan = band.r1 - band.r0 - 460;   // 1690 上界，留出外环边缘
+  const out = [];
+  for(let i = 0; i < els.length; i++){
+    let x = CX, y = CY, ok = false;
+    for(let k = 0; k < 80; k++){
+      const a = Math.random() * Math.PI * 2;
+      const r = rMin + Math.random() * rSpan;
+      const px = CX + Math.cos(a) * r;
+      const py = CY + Math.sin(a) * r;
+      if(portalSpotOk(px, py, out, 520)){ x = px; y = py; ok = true; break; }
+    }
+    if(!ok){                                // 罕见兜底：放宽间距
+      for(let k = 0; k < 60; k++){
+        const a = Math.random() * Math.PI * 2;
+        const r = rMin + Math.random() * rSpan;
+        const px = CX + Math.cos(a) * r;
+        const py = CY + Math.sin(a) * r;
+        if(portalSpotOk(px, py, out, 260)){ x = px; y = py; ok = true; break; }
+      }
+    }
+    if(!ok){                                // 再兜底：只保证不压障碍
+      for(let k = 0; k < 120; k++){
+        const a = Math.random() * Math.PI * 2;
+        const r = rMin + Math.random() * rSpan;
+        const px = CX + Math.cos(a) * r;
+        const py = CY + Math.sin(a) * r;
+        if(portalSpotOk(px, py, out, 0)){ x = px; y = py; ok = true; break; }
+      }
+    }
+    if(!ok){                                // 最后兜底：贴环带随机放，绝不重叠
+      const a = Math.random() * Math.PI * 2;
+      x = CX + Math.cos(a) * (band.r0 + 260);
+      y = CY + Math.sin(a) * (band.r0 + 260);
+    }
+    out.push({ el: els[i], x: Math.round(x), y: Math.round(y) });
+  }
+  worldGeo.portals = out;
+  G.portals = out;
 }
 
 function initHostWorld(){
@@ -3114,7 +3175,7 @@ function initHostWorld(){
   spawnMobs();
   initItems();
   relocatePortals();
-  lastPortalsAt = Date.now();
+  nextPortalAt = Date.now() + portalNextDelay();
   addPlayer('host', G.playerName, { gender:G.gender, root:[G.root], control:G.control }, true);
 }
 
@@ -3176,10 +3237,10 @@ function hostTick(){
   const dt = TICK_MS/1000;
   const tnow = Date.now();
 
-  // 秘境传送门每 20 秒换位
-  if(tnow - lastPortalsAt > 20000){
-    lastPortalsAt = tnow;
+  // 秘境传送门换位：间隔 30–60 秒随机，方位全随机
+  if(tnow >= nextPortalAt){
     relocatePortals();
+    nextPortalAt = tnow + portalNextDelay();
     emit({ e:'portalMove' });
   }
 
@@ -5053,7 +5114,7 @@ function tutSteps(){
     { t:'坊市与宗门',
       d:'走到青云坊市按 '+k('shop')+' 买卖丹药与草药；靠近宗门山门按 '+k('trial')+' 试炼，入宗后按 '+k('sect')+' 放宗门秘法。' },
     { t:'秘境与雷劫',
-      d:'金色传送门每 20 秒换位，踏入即进入对应五行的秘境，击败 BOSS 可习得秘境秘法。主动攻击道友会积累煞气，满 100 会引来雷劫，出手前想清楚。' },
+      d:'金色传送门每半分钟到一分钟随机换位，踏入即进入对应五行的秘境，击败 BOSS 可习得秘境秘法。主动攻击道友会积累煞气，满 100 会引来雷劫，出手前想清楚。' },
     { t:'出发吧',
       d:'教程结束。按 '+k('settings')+' 可随时查看或修改键位，祝道友早日化神。' },
   ];
