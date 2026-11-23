@@ -412,10 +412,20 @@ input{font-family:inherit}
 .tu-btns button.skip{flex:0 0 76px;color:var(--muted)}
 #tutorialBox.flash{animation:tuFlash .5s ease}
 @keyframes tuFlash{0%{box-shadow:0 0 0 rgba(217,192,138,0)}50%{box-shadow:0 0 28px rgba(217,192,138,.45)}100%{box-shadow:0 14px 44px rgba(0,0,0,.5)}}
+.ach-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);color:#8fa39a}
+.ach-row.on{color:#dfeade}
+.ach-row .info{flex:1;min-width:0}
+.ach-row .it{font-size:11.5px}
+.ach-row .id{font-size:10px;color:#6f837a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ach-row .id b{color:var(--gold);font-weight:400}
+.ach-row.on .it:before{content:"✓ ";color:var(--gold)}
+.ach-row button{padding:4px 9px;font-size:10.5px;border-radius:2px;border:1px solid rgba(217,192,138,.4);
+  background:rgba(217,192,138,.12);color:var(--gold-2)}
+.ach-row button:disabled{border-color:rgba(255,255,255,.12);background:transparent;color:#5d7168}
 @media (max-width:560px){
   #tutorialBox{top:84px;width:calc(100vw - 24px)}
   #settingsPanel{max-height:78vh}
-  #topbar .stats>span:nth-child(4),#topbar .stats>span:nth-child(5){display:none}
+  #topbar .stats>span:nth-child(5),#topbar .stats>span:nth-child(6){display:none}
 }
 
 </style>
@@ -441,6 +451,7 @@ input{font-family:inherit}
       <span>灵石 <b id="stones">0</b></span>
       <span>草药 <b id="herbs">0</b></span>
       <span>煞气 <b id="grudgeNum">0</b></span>
+      <span>碎片 <b id="shards">0</b></span>
       <span>在线 <b id="online">1</b></span>
       <span id="ping">-- ms</span>
       <button class="icon-btn" id="settingBtn" title="设置 · 键位与操作方式（O）">⚙</button>
@@ -583,6 +594,8 @@ input{font-family:inherit}
     <div class="info"><div class="t">出售草药</div><div class="d">每株 15 灵石，雷草每株 60 灵石</div></div>
     <button data-buy="sellherb">全部出售</button>
   </div>
+  <div class="shop-sub" style="margin-top:14px">法宝炼制 · 3 碎片 + 200 灵石，一人只可佩一件</div>
+  <div id="artList"></div>
   <button id="shopClose">离开坊市</button>
 </div>
 
@@ -611,6 +624,9 @@ input{font-family:inherit}
     <div class="info"><div class="t">恢复默认键位</div><div class="d">把所有按键还原为初始设置</div></div>
     <button id="resetBinds">恢复</button>
   </div>
+
+  <div class="set-sec">称号与成就<span class="set-tip">达成成就自动获称号，可任选其一佩戴</span></div>
+  <div id="achList"></div>
 
   <div class="set-sec">键位绑定<span class="set-tip">点按键后按新键，Esc 取消</span></div>
   <div id="bindList"></div>
@@ -926,6 +942,46 @@ const CONTROL_INFO = {
   lockon: { name:'灵觉锁敌', desc:'攻击自动锁定最近妖兽，WASD 绝对移动', femaleOnly:true },
 };
 
+/* ---------------- 成就 / 称号 ---------------- */
+const ACH_DEFS = [
+  { id:'first',  name:'初见青云', desc:'踏入青云界',        title:'青云散人', cond:p=>true },
+  { id:'kill1',  name:'初露锋芒', desc:'击败第一只妖兽',    title:'试剑人',   cond:p=>p.kills>=1 },
+  { id:'kill100',name:'百妖斩',   desc:'累计击败 100 只妖兽',title:'屠妖手',   cond:p=>p.kills>=100 },
+  { id:'herb10', name:'采药十株', desc:'累计采集 10 株草药', title:'采药人',   cond:p=>p.gathered>=10 },
+  { id:'found',  name:'筑基有成', desc:'突破至筑基期',      title:'筑基修士', cond:p=>p.realm>=3 },
+  { id:'core',   name:'金丹大成', desc:'凝结金丹',          title:'金丹真人', cond:p=>p.realm>=9 },
+  { id:'nascent',name:'元婴出窍', desc:'踏入元婴期',        title:'元婴真君', cond:p=>p.realm>=15 },
+  { id:'secret', name:'秘境行者', desc:'习得任一门秘境秘法',title:'秘境行者', cond:p=>!!(p.secret && Object.keys(p.secret).length) },
+  { id:'boss',   name:'秘境霸主', desc:'斩杀秘境 BOSS',     title:'秘境霸主', cond:p=>p.bossKills>=1 },
+  { id:'sect',   name:'宗门弟子', desc:'拜入任一宗门',      title:'宗门弟子', cond:p=>!!p.sect },
+  { id:'rich',   name:'富甲一方', desc:'持有 2000 灵石',    title:'散财真人', cond:p=>p.stones>=2000 },
+  { id:'spar',   name:'点到为止', desc:'切磋三胜',          title:'以武会友', cond:p=>p.sparWins>=3 },
+  { id:'enc',    name:'奇遇有缘', desc:'遇见 3 位奇人',     title:'有缘人',   cond:p=>p.encounters>=3 },
+  { id:'devil',  name:'一念成魔', desc:'入魔一次',          title:'魔头',     cond:p=>!!p.devil||!!p.devilCause },
+];
+const ACH_BY_ID = {};
+for(const a of ACH_DEFS) ACH_BY_ID[a.id] = a;
+function achInfo(id){ return ACH_BY_ID[id] || null; }
+
+/* ---------------- 法宝（占一个槽，只能佩一件） ---------------- */
+const ART_DEFS = [
+  { id:'sword', name:'剑匣', desc:'攻击 +12%',     atk:0.12 },
+  { id:'armor', name:'玉甲', desc:'气血上限 +15%', hp:0.15 },
+  { id:'boots', name:'灵靴', desc:'移动速度 +8%',  spd:0.08 },
+];
+const ART_BY_ID = {};
+for(const a of ART_DEFS) ART_BY_ID[a.id] = a;
+const ART_COST_SHARD = 3, ART_COST_STONE = 200;
+
+/* ---------------- 随机奇遇 ---------------- */
+const ENCOUNTER_DEFS = [
+  { type:'merchant', name:'云游商人', color:'#e8cf8a', line:'有缘，这瓶丹药赠你了。' },
+  { type:'rogue',    name:'渡劫散修', color:'#c9b8ff', line:'替老夫护法一场，这缕修为送你。' },
+  { type:'swordsman',name:'受伤剑修', color:'#9fd3e8', line:'这枚法宝碎片，替我收好。' },
+  { type:'kid',      name:'迷路童子', color:'#79e0bd', line:'谢谢道兄指路，这是家里给的灵石。' },
+  { type:'herbalist',name:'采药老翁', color:'#8fbf7a', line:'山野灵草，分你两株。' },
+];
+
 /* ---------------- 键位绑定 ---------------- */
 /* 全部按键集中于此，设置面板可直接改键；默认值即旧版硬编码键位 */
 const DEFAULT_BINDS = {
@@ -936,7 +992,7 @@ const DEFAULT_BINDS = {
   secret:'Digit0', sect:'KeyQ',
   meditate:'KeyR', gather:'KeyE', herb:'KeyH',
   healPill:'KeyU', expPill:'KeyJ', thunder:'KeyG', break:'KeyB', swap:'KeyX',
-  shop:'KeyF', trial:'KeyT', leaveSect:'KeyK', rage:'KeyV',
+  shop:'KeyF', trial:'KeyT', leaveSect:'KeyK', rage:'KeyV', spar:'KeyC',
   settings:'KeyO', control:'KeyP', mute:'KeyM', chat:'Enter',
 };
 
@@ -968,6 +1024,7 @@ const BIND_ACTIONS = [
   { id:'shop',     name:'坊市',       group:'交互' },
   { id:'trial',    name:'宗门试炼',   group:'交互' },
   { id:'leaveSect',name:'退出宗门',   group:'交互' },
+  { id:'spar',     name:'切磋',       group:'交互' },
   { id:'rage',     name:'魔鬼狂暴',   group:'交互' },
   { id:'settings', name:'打开设置',   group:'系统' },
   { id:'control',  name:'切换操作方式', group:'系统' },
@@ -1129,6 +1186,7 @@ const world = {
   herbs:new Map(),
   projectiles:new Map(),
   items:new Map(),       // 秘境奇珍异宝
+  npcs:new Map(),        // 随机奇遇 NPC
 };
 
 const input = {
@@ -1156,6 +1214,7 @@ let mobSeq = 0;
 let projSeq = 0;
 let itemSeq = 0;
 let nextPortalAt = 0;
+let lastAchAt = 0;
 /* 传送门换位间隔：30–60 秒随机 */
 function portalNextDelay(){ return 30000 + Math.random()*30000; }
 let lastExpSeen = 0;
@@ -2541,6 +2600,10 @@ function render(){
       if(p.area==='secret') continue;
       if(inView(p.x,p.y,70)) drawables.push({ y:p.y, kind:'player', o:p });
     }
+    for(const n of world.npcs.values()){
+      if(n.area==='secret') continue;
+      if(inView(n.x,n.y,70)) drawables.push({ y:n.y, kind:'npc', o:n });
+    }
     drawables.sort((a,b)=>a.y-b.y);
     for(const d of drawables){
       if(d.kind==='obs'){
@@ -2548,6 +2611,7 @@ function render(){
         else drawRock(d.o);
       }else if(d.kind==='house') drawHouse(d.o);
       else if(d.kind==='mob') drawMob(d.o);
+      else if(d.kind==='npc') drawNpc(d.o);
       else drawPlayer(d.o, d.o.id===G.selfId);
     }
 
@@ -2568,6 +2632,72 @@ function render(){
     if(render._mmTick % 3 === 0) drawMinimap();   // 小地图约 20fps，够用
   }
   requestAnimationFrame(render);
+}
+
+/* ---------------- 奇遇 NPC ---------------- */
+function drawNpc(n){
+  const t = G.time*0.002;
+  const bob = Math.sin(t + (n.phase||0))*3;
+  ctx.save();
+  ctx.translate(n.x, n.y);
+  ctx.scale(1.55, 1.55);
+  // 影
+  ctx.fillStyle = 'rgba(0,0,0,.4)';
+  ctx.beginPath(); ctx.ellipse(0, 4, 17, 7, 0, 0, Math.PI*2); ctx.fill();
+  // 灵光
+  const col = n.color || '#e8cf8a';
+  ctx.globalAlpha = 0.2 + Math.sin(t*2.2 + (n.phase||0))*0.1;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(0, -22+bob, 30, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // 光柱
+  ctx.strokeStyle = col; ctx.globalAlpha = 0.4; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(0,-52+bob); ctx.lineTo(0,-22+bob); ctx.stroke();
+  ctx.globalAlpha = 1;
+  // 袍
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(-11, 3); ctx.quadraticCurveTo(0, -26+bob, 11, 3); ctx.lineTo(10, 8); ctx.lineTo(-10, 8);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(16,24,20,.55)'; ctx.lineWidth = 2; ctx.stroke();
+  // 腰带
+  ctx.fillStyle = 'rgba(16,24,20,.5)';
+  ctx.fillRect(-10, 1+bob*0.8, 20, 3);
+  // 头
+  ctx.fillStyle = '#f7ecd2';
+  ctx.beginPath(); ctx.arc(0, -28+bob, 8, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(16,24,20,.5)'; ctx.lineWidth = 1.6; ctx.stroke();
+  // 发髻
+  ctx.fillStyle = 'rgba(30,36,30,.75)';
+  ctx.beginPath(); ctx.arc(0, -35+bob, 4.2, Math.PI, Math.PI*2); ctx.fill();
+  // 手中灯笼
+  const lx = 13, ly = -18+bob;
+  ctx.strokeStyle = 'rgba(20,24,20,.7)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(9,-2+bob); ctx.lineTo(lx, ly+7); ctx.stroke();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = '#ffd98a';
+  ctx.beginPath(); ctx.arc(lx, ly, 11, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#ffe9b0';
+  ctx.beginPath(); ctx.arc(lx, ly, 4.5, 0, Math.PI*2); ctx.fill();
+  // 问号
+  ctx.fillStyle = '#fff8e0';
+  ctx.font = 'bold 16px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('?', 0, -47+bob);
+  // 名字
+  ctx.restore();
+  // 名字（不随缩放）
+  ctx.save();
+  ctx.translate(n.x, n.y);
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  const tw = ctx.measureText(n.name).width + 12;
+  ctx.fillStyle = 'rgba(6,14,12,.78)';
+  ctx.fillRect(-tw/2, 18, tw, 15);
+  ctx.fillStyle = col;
+  ctx.fillText(n.name, 0, 29);
+  ctx.restore();
 }
 
 /* ---------------- 小地图 ---------------- */
@@ -2643,6 +2773,16 @@ function drawMinimap(){
     mctx.fillStyle = p.id===G.selfId ? '#f0dfb4' : (p.devil ? '#c9b8ff' : 'rgba(121,224,189,.9)');
     mctx.beginPath(); mctx.arc(p.x*kx,p.y*ky, p.id===G.selfId?3:2.2,0,Math.PI*2); mctx.fill();
   }
+  // 奇遇 NPC
+  for(const n of world.npcs.values()){
+    if(n.area==='secret') continue;
+    mctx.fillStyle = 'rgba(232,207,138,.95)';
+    mctx.save();
+    mctx.translate(n.x*kx, n.y*ky);
+    mctx.rotate(Math.PI/4);
+    mctx.fillRect(-1.8, -1.8, 3.6, 3.6);
+    mctx.restore();
+  }
   // 视野框
   const vw = (W/WORLD.w)*w, vh = (H/WORLD.h)*h;
   mctx.strokeStyle = 'rgba(240,223,180,.35)'; mctx.lineWidth = 1;
@@ -2679,6 +2819,10 @@ function serPlayer(p){
     preset:p.preset||null,
     trib:p.trib ? { hit:p.trib.hit, total:p.trib.total } : null,
     sect:p.sect, sectPeak:p.sectPeak, secret:p.secret,
+    shards:p.shards||0, arts:p.arts||[], art:p.art||null,
+    ach:p.ach||[], title:p.title||'',
+    bossKills:p.bossKills||0, sparWins:p.sparWins||0, encounters:p.encounters||0,
+    sparWith:p.sparWith||null,
     meditating:p.meditating, dead:p.dead,
     respawnIn: p.dead ? Math.max(0, Math.ceil((p.respawnAt-Date.now())/1000)) : 0,
     cd:{ ...p.cd },
@@ -2736,6 +2880,8 @@ function handleHostData(conn, d){
         mobs:[...world.mobs.values()].map(serMob),
         herbs:[...world.herbs.values()].map(h=>({id:h.id,x:h.x,y:h.y,el:h.el,alive:h.alive,respawnAt:h.respawnAt,phase:h.phase})),
         items:[...world.items.values()].map(serItem),
+        npcs:[...world.npcs.values()].map(n=>({ id:n.id, type:n.type, name:n.name, color:n.color,
+          x:Math.round(n.x), y:Math.round(n.y), phase:n.phase })),
         portals:G.portals,
       });
       break;
@@ -2760,6 +2906,9 @@ function handleHostData(conn, d){
     case 'trial': hostTrial(id); break;
     case 'joinsect': hostJoinSect(id, d.sectId, Number(d.peak)|0); break;
     case 'leavesect': hostLeaveSect(id); break;
+    case 'spar': hostSpar(id); break;
+    case 'title': hostTitle(id, d.title); break;
+    case 'art': hostArt(id, d.action, d.art); break;
     case 'ping': try{ conn.send({type:'pong', t:d.t}); }catch(e){} break;
   }
 }
@@ -2782,6 +2931,8 @@ function broadcastSnapshot(){
       vx:pr.vx, vy:pr.vy, area:pr.area, secretEl:pr.secretEl,
     })),
     items:[...world.items.values()].map(serItem),
+    npcs:[...world.npcs.values()].map(n=>({ id:n.id, type:n.type, name:n.name, color:n.color,
+      x:Math.round(n.x), y:Math.round(n.y), phase:n.phase })),
     portals:G.portals,
     events:pendingEvents.splice(0),
     herbs:herbChanges.splice(0),
@@ -2812,6 +2963,8 @@ function onInit(d){
   for(const m of d.mobs||[]) world.mobs.set(m.id, { ...m, renderX:m.x, renderY:m.y, homeX:m.x, homeY:m.y, attackCd:0 });
   for(const h of d.herbs||[]) world.herbs.set(h.id, { ...h });
   for(const it of d.items||[]) world.items.set(it.id, { ...it });
+  world.npcs.clear();
+  for(const n of d.npcs||[]) world.npcs.set(n.id, { ...n });
   G.portals = d.portals || [];
   G.selfId = d.you;
   const me = world.players.get(G.selfId);
@@ -2875,6 +3028,16 @@ function onSnapshot(d){
   }
 
   if(d.portals) G.portals = d.portals;
+  if(d.npcs){
+    const nseen = new Set();
+    for(const n of d.npcs){
+      nseen.add(n.id);
+      const cur = world.npcs.get(n.id);
+      if(cur) Object.assign(cur, n);
+      else world.npcs.set(n.id, { ...n });
+    }
+    for(const nid of [...world.npcs.keys()]) if(!nseen.has(nid)) world.npcs.delete(nid);
+  }
   for(const ev of d.events||[]) applyEvent(ev);
 }
 
@@ -2995,6 +3158,10 @@ function makePlayer(id,name,x,y,opt){
     deathCause:null, preset:null, lock:{}, expRate:1,
     sect:null, sectPeak:-1, trialCd:0,
     secret:{},
+    shards:0, arts:[], art:null,
+    ach:[], title:'',
+    bossKills:0, sparWins:0, encounters:0,
+    sparWith:null, sparUntil:0, sparInvite:null, sparInviteAt:0,
     meditating:false, dead:false, respawnAt:0,
     cd:{}, aim:0, attacking:0,
     inp:null, lastCombat:0,
@@ -3015,6 +3182,8 @@ function recalcPlayer(p){
   const cp = CHEAT_PRESETS[p.preset];
   if(cp){ hpB+=cp.hp; mpB+=cp.mp; atkB+=cp.atk; defB+=cp.def; p.expRate=cp.expRate; }
   else p.expRate = 1;
+  const artD = p.art ? ART_BY_ID[p.art] : null;
+  if(artD){ hpB += artD.hp||0; atkB += artD.atk||0; }
   p.realmName = info.name;
   p.maxHp = Math.round(info.maxHp*(1+hpB));
   p.maxMp = Math.round(info.maxMp*(1+mpB));
@@ -3176,6 +3345,8 @@ function initHostWorld(){
   initItems();
   relocatePortals();
   nextPortalAt = Date.now() + portalNextDelay();
+  nextEncAt = Date.now() + 30000 + Math.random()*45000;
+  world.npcs.clear();
   addPlayer('host', G.playerName, { gender:G.gender, root:[G.root], control:G.control }, true);
 }
 
@@ -3242,6 +3413,42 @@ function hostTick(){
     relocatePortals();
     nextPortalAt = tnow + portalNextDelay();
     emit({ e:'portalMove' });
+  }
+
+  // 成就判定（每秒一次即可）
+  if(tnow - lastAchAt > 1200){
+    lastAchAt = tnow;
+    for(const p of world.players.values()) checkAch(p);
+  }
+
+  // 切磋：超时 / 距离过远 / 对手离场
+  for(const p of world.players.values()){
+    if(!p.sparWith) continue;
+    const o = world.players.get(p.sparWith);
+    if(!o || o.dead || o.sparWith !== p.id){ p.sparWith = null; continue; }
+    if(tnow >= p.sparUntil){
+      const win = (p.hp/p.maxHp) >= (o.hp/o.maxHp) ? p.id : o.id;
+      endSpar(p, win, 'time');
+      emit({e:'sys', text:'切磋时限到，点到为止', id:p.id});
+      emit({e:'sys', text:'切磋时限到，点到为止', id:o.id});
+    }else if(dist(p.x,p.y,o.x,o.y) > 700){
+      endSpar(p, null, 'far');
+      emit({e:'sys', text:'相距太远，切磋作罢', id:p.id});
+      emit({e:'sys', text:'相距太远，切磋作罢', id:o.id});
+    }
+  }
+
+  // 随机奇遇：40–80 秒刷一位，30 秒未遇自散
+  if(tnow >= nextEncAt){
+    nextEncAt = tnow + 40000 + Math.random()*40000;
+    spawnEncounter();
+  }
+  for(const n of world.npcs.values()){
+    if(tnow - n.born > 35000){ world.npcs.delete(n.id); continue; }
+    for(const p of world.players.values()){
+      if(p.dead || p.area !== 'world') continue;
+      if(dist(p.x, p.y, n.x, n.y) < 48){ encounterReward(p, n); break; }
+    }
   }
 
   /* ---- 玩家 ---- */
@@ -3325,7 +3532,7 @@ function hostTick(){
     if(inp.med && !moving) p.meditating = true;
     if(!inp.med && !moving && p.meditating && tnow-p.lastCombat>2500) p.meditating = true;
 
-    const speed = SPEED * (p.devil && p.rage ? 1.3 : 1);
+    const speed = SPEED * (p.devil && p.rage ? 1.3 : 1) * (p.art==='boots' ? 1.08 : 1);
     if(moving){
       let nx = p.x + vx*speed*dt, ny = p.y + vy*speed*dt;
       if(p.area==='secret'){
@@ -3609,6 +3816,16 @@ function killMob(m, ownerId){
       p.herbInv[dropEl] = (p.herbInv[dropEl]||0) + (cfg.boss?3:1);
       if(Math.random()<0.3) p.herbInv.thunder = (p.herbInv.thunder||0)+1;
     }
+    // 法宝碎片：BOSS 必掉 3，精英小怪 6% 掉 1
+    if(cfg.boss){
+      p.bossKills = (p.bossKills||0) + 1;
+      p.shards = (p.shards||0) + 3;
+      emit({e:'item', x:m.x, y:m.y-18, text:'+3 法宝碎片', color:'#e8cf8a', id:p.id});
+    }else if(Math.random() < 0.06){
+      p.shards = (p.shards||0) + 1;
+      emit({e:'item', x:m.x, y:m.y-18, text:'+1 法宝碎片', color:'#e8cf8a', id:p.id});
+    }
+
     // 秘境 BOSS：授秘法
     if(m.area==='secret' && cfg.boss){
       const el = m.secretEl;
@@ -3640,6 +3857,24 @@ function damagePlayer(target, raw, attackerId, el){
   }
   if(real <= 0) return;
   if(target.lock && target.lock.hp) return;
+
+  // 切磋：双方都收着力，打到剩 1 点即止，不积煞气
+  const sparring = attacker && target.sparWith === attacker.id && attacker.sparWith === target.id;
+  if(sparring){
+    const soft = Math.max(1, Math.round(real*0.6));
+    target.hp -= soft;
+    target.lastCombat = Date.now();
+    target.meditating = false;
+    emit({e:'pvpHit', x:target.x, y:target.y-16, dmg:soft, id:target.id, atk:attackerId, spar:true});
+    if(target.hp <= 1){
+      target.hp = 1;
+      endSpar(target, attacker.id, 'ko');
+      emit({e:'sys', text:'切磋点到为止，承让', id:attacker.id});
+      emit({e:'sys', text:'切磋落败，受教了', id:target.id});
+    }
+    return;
+  }
+
   target.hp -= real;
   target.lastCombat = Date.now();
   target.meditating = false;
@@ -3995,6 +4230,165 @@ function hostBuy(id, item){
   }
 }
 
+/* ---------------- 成就 / 称号 ---------------- */
+function checkAch(p){
+  if(!p) return false;
+  let got = false;
+  for(const a of ACH_DEFS){
+    if(p.ach.indexOf(a.id) >= 0) continue;
+    let ok = false;
+    try{ ok = !!a.cond(p); }catch(e){ ok = false; }
+    if(ok){
+      p.ach.push(a.id);
+      if(!p.title) p.title = a.title;
+      emit({e:'ach', id:p.id, name:p.name, ach:a.id, title:a.title});
+      got = true;
+    }
+  }
+  return got;
+}
+function hostTitle(id, title){
+  const p = world.players.get(id);
+  if(!p) return;
+  title = String(title||'').slice(0,10);
+  if(!title){ p.title = ''; emit({e:'sys', text:'已卸下称号', id}); return; }
+  const a = ACH_DEFS.find(x=>x.title===title);
+  if(!a || p.ach.indexOf(a.id) < 0){ emit({e:'sys', text:'尚未获得该称号', id}); return; }
+  p.title = title;
+  emit({e:'sys', text:`称号已换为「${title}」`, id, gold:true});
+}
+
+/* ---------------- 法宝：炼制 / 佩戴 ---------------- */
+function hostArt(id, action, artId){
+  const p = world.players.get(id);
+  const d = ART_BY_ID[artId];
+  if(!p || !d) return;
+  if(action === 'craft'){
+    if(p.arts.indexOf(artId) >= 0){ emit({e:'sys', text:'这法宝已经炼过了', id}); return; }
+    if(p.shards < ART_COST_SHARD || p.stones < ART_COST_STONE){
+      emit({e:'sys', text:`需 ${ART_COST_SHARD} 碎片 + ${ART_COST_STONE} 灵石`, id}); return;
+    }
+    p.shards -= ART_COST_SHARD;
+    p.stones -= ART_COST_STONE;
+    p.arts.push(artId);
+    emit({e:'buy', x:p.x, y:p.y, name:p.name, text:`炼成 ${d.name}`, id:p.id});
+    checkAch(p);
+  }else if(action === 'equip'){
+    if(p.arts.indexOf(artId) < 0){ emit({e:'sys', text:'尚未炼成该法宝', id}); return; }
+    p.art = artId;
+    recalcPlayer(p);
+    emit({e:'sys', text:`已佩 ${d.name} · ${d.desc}`, id, gold:true});
+    emit({e:'art', x:p.x, y:p.y, art:artId, id:p.id});
+  }else if(action === 'unequip'){
+    if(p.art !== artId) return;
+    p.art = null;
+    recalcPlayer(p);
+    emit({e:'sys', text:`已卸下 ${d.name}`, id});
+  }
+}
+
+/* ---------------- 切磋 ---------------- */
+function nearestPlayer(p, maxD){
+  let best = null, bd = maxD;
+  for(const o of world.players.values()){
+    if(o.id === p.id || o.dead) continue;
+    if(o.area !== p.area) continue;
+    if(p.area === 'secret' && o.secretEl !== p.secretEl) continue;
+    const d = dist(p.x, p.y, o.x, o.y);
+    if(d < bd){ bd = d; best = o; }
+  }
+  return best;
+}
+function endSpar(p, winnerId, reason){
+  if(!p) return;
+  const o = p.sparWith ? world.players.get(p.sparWith) : null;
+  if(o && o.sparWith === p.id) o.sparWith = null;
+  const partnerId = p.sparWith;
+  p.sparWith = null;
+  p.sparUntil = 0;
+  if(o) o.sparUntil = 0;
+  const w = winnerId ? world.players.get(winnerId) : null;
+  if(w){
+    w.sparWins = (w.sparWins||0) + 1;
+    checkAch(w);
+  }
+  emit({e:'sparEnd', x:p.x, y:p.y, winner:winnerId||null,
+        a:p.id, b:partnerId, reason:reason||'', wn:w?w.name:''});
+}
+function hostSpar(id){
+  const p = world.players.get(id);
+  if(!p || p.dead) return;
+  const now = Date.now();
+
+  if(p.sparWith){                        // 切磋中再按一次 = 认输收手
+    const wid = p.sparWith;
+    endSpar(p, wid, 'yield');
+    emit({e:'sys', text:'切磋结束，点到为止', id});
+    return;
+  }
+  const o = nearestPlayer(p, 180);
+  if(!o){ emit({e:'sys', text:'附近没有可切磋的道友', id}); return; }
+  if(o.sparWith && o.sparWith !== p.id){
+    emit({e:'sys', text:`${o.name} 正在与人切磋`, id}); return;
+  }
+  if(p.sparInvite === o.id && now - p.sparInviteAt < 10000){
+    p.sparWith = o.id; o.sparWith = p.id;
+    p.sparUntil = o.sparUntil = now + 45000;
+    p.sparInvite = null; o.sparInvite = null;
+    emit({e:'sparStart', x:p.x, y:p.y, a:p.id, b:o.id, an:p.name, bn:o.name});
+    emit({e:'sys', text:`与 ${o.name} 切磋开始：45 秒内点到为止，不积煞气`, id, gold:true});
+    emit({e:'sys', text:`已与 ${p.name} 开始切磋`, id:o.id, gold:true});
+  }else{
+    o.sparInvite = p.id; o.sparInviteAt = now;
+    emit({e:'sys', text:`${p.name} 邀你切磋，按 ${keyLabel(BINDS.spar)} 应战`, id:o.id});
+    emit({e:'sys', text:`已向 ${o.name} 发出切磋邀请`, id});
+  }
+}
+
+/* ---------------- 随机奇遇 ---------------- */
+let npcSeq = 0, nextEncAt = 0;
+function spawnEncounter(){
+  if(world.npcs.size >= 3) return;
+  const def = ENCOUNTER_DEFS[Math.floor(Math.random()*ENCOUNTER_DEFS.length)];
+  const ring = RINGS[1 + Math.floor(Math.random()*2)];   // 第二 / 三环
+  let x = 0, y = 0, ok = false;
+  for(let k=0;k<50;k++){
+    const a = Math.random()*Math.PI*2;
+    const r = ring.r0 + 90 + Math.random()*(ring.r1 - ring.r0 - 180);
+    x = CX + Math.cos(a)*r;
+    y = CY + Math.sin(a)*r;
+    if(portalSpotOk(x, y, [], 0)){ ok = true; break; }
+  }
+  if(!ok) return;
+  const n = {
+    id:'n'+(++npcSeq), type:def.type, name:def.name, color:def.color,
+    x:Math.round(x), y:Math.round(y), phase:Math.random()*6.28, born:Date.now(),
+  };
+  world.npcs.set(n.id, n);
+  emit({e:'npcSpawn', x:n.x, y:n.y, name:n.name});
+}
+function encounterReward(p, n){
+  const def = ENCOUNTER_DEFS.find(d=>d.type===n.type) || ENCOUNTER_DEFS[0];
+  let text = '';
+  if(n.type === 'merchant'){
+    p.pillsHeal = (p.pillsHeal||0) + 1; text = '+1 回春丹';
+  }else if(n.type === 'rogue'){
+    const v = Math.round(p.expMax*0.25);
+    p.exp = Math.min(p.expMax, p.exp + v); text = '+'+v+' 修为';
+  }else if(n.type === 'swordsman'){
+    p.shards = (p.shards||0) + 1; text = '+1 法宝碎片';
+  }else if(n.type === 'kid'){
+    p.stones += 120; text = '+120 灵石';
+  }else if(n.type === 'herbalist'){
+    const el = EL_LIST[Math.floor(Math.random()*EL_LIST.length)];
+    p.herbInv[el] = (p.herbInv[el]||0) + 2; text = '+2 '+elName(el)+'草';
+  }
+  p.encounters = (p.encounters||0) + 1;
+  emit({e:'encounter', x:n.x, y:n.y, name:n.name, line:def.line, text, id:p.id});
+  checkAch(p);
+  world.npcs.delete(n.id);
+}
+
 /* ---------------- 灵根切换 / 魔鬼狂暴 ---------------- */
 function hostSwapRoot(id){
   const p = world.players.get(id);
@@ -4281,6 +4675,42 @@ function applyEvent(ev){
     case 'rage':
       if(ev.id===G.selfId){ toast(ev.on?'狂暴开启：杀意滔天':'狂暴收敛','thunder'); }
       break;
+    case 'ach':{
+      const a = achInfo(ev.ach);
+      if(ev.id === G.selfId){
+        toast(`成就达成 ·「${a?a.name:ev.ach}」 称号「${ev.title}」`, 'gold');
+        sfx('buff');
+      }
+      break;
+    }
+    case 'sparStart':
+      ring(ev.x, ev.y, 'rgba(140,220,190,.8)', 120, 0.6);
+      if(ev.a===G.selfId || ev.b===G.selfId) toast('切磋开始：点到为止', 'gold');
+      break;
+    case 'sparEnd':
+      if(ev.a===G.selfId || ev.b===G.selfId){
+        const won = ev.winner === G.selfId;
+        toast(ev.winner ? (won?'切磋胜出！':'切磋落败，再接再厉') : '切磋作罢', won?'gold':'');
+        if(ev.winner) ring(ev.x, ev.y, won?'rgba(255,214,120,.8)':'rgba(160,170,190,.6)', 90, 0.5);
+      }
+      break;
+    case 'npcSpawn':
+      ring(ev.x, ev.y, 'rgba(200,220,255,.55)', 60, 0.6);
+      break;
+    case 'encounter':
+      floatText(ev.x, ev.y-30, ev.name+'：'+ev.line, ev.color||'#e8cf8a', 12);
+      if(ev.id === G.selfId){
+        addSys(`${ev.name} 赠你 ${ev.text}`, 'gold');
+        toast(`${ev.name} 赠你 ${ev.text}`, 'gold');
+        sfx('buff');
+      }
+      break;
+    case 'art':
+      if(ev.id === G.selfId){
+        const d = ART_BY_ID[ev.art];
+        if(d) toast(`已佩 ${d.name} · ${d.desc}`, 'gold');
+      }
+      break;
     case 'portalMove':
       addSys('秘境传送门已变换方位','');
       break;
@@ -4384,7 +4814,7 @@ function predictSelf(dt){
   const len = Math.hypot(vx,vy);
   if(len > 1){ vx/=len; vy/=len; }
   if(len > 0.08){
-    const speed = SPEED * (me.devil && me.rage ? 1.3 : 1);
+    const speed = SPEED * (me.devil && me.rage ? 1.3 : 1) * (me.art==='boots' ? 1.08 : 1);
     let nx = G.pred.x + vx*speed*dt, ny = G.pred.y + vy*speed*dt;
     if(me.area==='secret'){
       const a = arenaClamp(nx,ny,14);
@@ -4419,6 +4849,16 @@ function tickClientVisuals(dt){
 }
 
 /* ---------------- 发送 ---------------- */
+function spar(){
+  if(G.mode!=='playing') return;
+  if(G.isHost) hostSpar(G.selfId); else send({type:'spar'});
+}
+function setTitle(title){
+  if(G.isHost) hostTitle(G.selfId, title||''); else send({type:'title', title:title||''});
+}
+function artAction(action, artId){
+  if(G.isHost) hostArt(G.selfId, action, artId); else send({type:'art', action, art:artId});
+}
 function send(msg){
   try{
     if(G.isHost) return;
@@ -4623,7 +5063,11 @@ function renderLoginHelp(){
     '<b>修行</b>：'+k('meditate')+' 打坐纳气，'+k('gather')+' 采草药；'+k('herb')+' 服草药，'+k('thunder')+' 服雷草引雷劫<br>'+
     '<b>破境</b>：修为满后按 '+k('break')+' 突破，失败损失三成修为<br>'+
     '<b>宗门</b>：靠近山门按 '+k('trial')+' 试炼；入宗后按 '+k('leaveSect')+' 退宗；'+k('rage')+' 魔鬼狂暴<br>'+
-    '<b>坊市</b>：走到青云坊市按 '+k('shop')+' 交易丹药与草药<br>'+
+    '<b>坊市</b>：走到青云坊市按 '+k('shop')+' 交易丹药与草药，也可用碎片炼制法宝<br>'+
+    '<b>切磋</b>：靠近道友按 '+k('spar')+' 发邀请，对方再按 '+k('spar')+' 应战；45 秒点到为止，不积煞气<br>'+
+    '<b>法宝</b>：斩妖掉落碎片，3 碎片 + 200 灵石炼一件，只能佩一件（攻击／气血／移速）<br>'+
+    '<b>奇遇</b>：第二、三环偶现光柱奇人，走近即得赠礼<br>'+
+    '<b>称号</b>：达成成就自动获称号，设置面板里可任选一个佩戴<br>'+
     '<b>聊天</b>：'+k('chat')+' 输入并发送<br>'+
     '<b>设置</b>：进游戏后点右上角 ⚙ 或按 '+k('settings')+'，可改键位、切换操作方式、重看新手教程';
 }
@@ -4730,6 +5174,7 @@ function updateHUD(){
   $('stones').textContent = me.stones;
   $('herbs').textContent = Object.values(me.herbInv||{}).reduce((a,b)=>a+(b||0),0);
   $('grudgeNum').textContent = Math.round(me.grudge||0);
+  $('shards').textContent = me.shards||0;
   $('online').textContent = world.players.size;
   $('ping').textContent = G.isHost ? '房主' : (G.ping?G.ping+' ms':'-- ms');
 
@@ -4835,8 +5280,20 @@ function updateHUD(){
 
 function updateHint(me, x, y){
   let hint = '';
-  if(me.area === 'secret'){
+  // 奇遇 NPC 优先
+  let nearNpc = null;
+  for(const n of world.npcs.values()){
+    if(n.area==='secret') continue;
+    if(dist(x,y,n.x,n.y) < 100) nearNpc = n;
+  }
+  const invited = [...world.players.values()].find(o=>o.sparInvite===G.selfId && Date.now()-o.sparInviteAt<10000);
+  if(me.sparWith) hint = '切磋中 · '+bindLabel('spar')+' 认输收手';
+  else if(me.area === 'secret'){
     hint = '走到南侧「归途」门可返回青云界';
+  }else if(nearNpc){
+    hint = '走近'+nearNpc.name+'（流光处）可获赠礼';
+  }else if(invited){
+    hint = invited.name+' 邀你切磋，按 '+bindLabel('spar')+' 应战';
   }else{
     const site = sectSiteAt(x,y);
     if(site && !me.sect && G.sectsOn) hint = '按 '+bindLabel('trial')+' 接受'+site.sect.name+'试炼';
@@ -4846,6 +5303,7 @@ function updateHint(me, x, y){
       for(const pt of G.portals) if(dist(x,y,pt.x,pt.y)<120) nearPortal = pt;
       if(nearPortal) hint = '走近'+SECRET_NAMES[nearPortal.el]+'传送门即可踏入';
       else if(zoneInfoAt(x,y).name==='青云坊市') hint = '按 '+bindLabel('shop')+' 打开坊市';
+      else if(nearestPlayer(me, 180)) hint = '按 '+bindLabel('spar')+' 与最近道友切磋';
       else if(me.herbInv && me.herbInv.thunder>0) hint = bindLabel('thunder')+' 服雷草，主动引动雷劫';
       else if(me.hp < me.maxHp*0.5 && Object.values(me.herbInv||{}).some(v=>v>0)) hint = bindLabel('herb')+' 服草药回血';
       else if(me.root.length>1) hint = bindLabel('swap')+' 切换灵根（'+elName(me.root[0])+' / '+elName(me.root[1])+'）';
@@ -4872,6 +5330,12 @@ function updateOnline(){
     nm.textContent = p.name + (p.id===G.selfId?'（你）':'');
     const rl = document.createElement('span'); rl.className='rl'; rl.textContent = p.realmName;
     li.appendChild(dot); li.appendChild(nm);
+    if(p.title){
+      const tb = document.createElement('span'); tb.className='eb';
+      tb.textContent = '「'+p.title+'」';
+      tb.style.color = '#e8cf8a';
+      li.appendChild(tb);
+    }
     if(p.sect){
       const eb = document.createElement('span'); eb.className='eb';
       eb.textContent = SECT_BY_ID[p.sect].name;
@@ -4889,7 +5353,77 @@ function updateOnline(){
 }
 
 /* ---------------- 坊市 / 宗门面板 ---------------- */
-function openShop(){ G.shopOpen = true; $('shopPanel').classList.remove('hidden'); $('shopBtn').classList.add('hidden'); }
+function buildArtList(){
+  const box = $('artList');
+  if(!box) return;
+  const me = getSelf();
+  if(!me){ box.innerHTML=''; return; }
+  box.innerHTML = '';
+  for(const d of ART_DEFS){
+    const owned = (me.arts||[]).indexOf(d.id) >= 0;
+    const equipped = me.art === d.id;
+    const row = document.createElement('div');
+    row.className = 'shop-item';
+    const si = document.createElement('div');
+    si.className = 'si';
+    si.textContent = equipped ? '✦' : (owned ? '◇' : '◆');
+    const info = document.createElement('div');
+    info.className = 'info';
+    const t = document.createElement('div'); t.className = 't';
+    t.textContent = d.name + (equipped ? ' · 佩戴中' : '');
+    const sub = document.createElement('div'); sub.className = 'd';
+    sub.textContent = owned ? d.desc : `${d.desc} · 碎片 ${me.shards||0}/${ART_COST_SHARD} 灵石 ${me.stones}/${ART_COST_STONE}`;
+    info.appendChild(t); info.appendChild(sub);
+    const btn = document.createElement('button');
+    let act = 'craft', label = '炼制';
+    if(equipped){ act = 'unequip'; label = '卸下'; }
+    else if(owned){ act = 'equip'; label = '佩戴'; }
+    if(act === 'craft' && ((me.shards||0) < ART_COST_SHARD || me.stones < ART_COST_STONE)) label = '材料不足';
+    btn.textContent = label;
+    btn.onclick = ()=>{ artAction(act, d.id); setTimeout(()=>{ buildArtList(); updateHUD(); }, 200); };
+    row.appendChild(si); row.appendChild(info); row.appendChild(btn);
+    box.appendChild(row);
+  }
+}
+
+function buildAchList(){
+  const box = $('achList');
+  if(!box) return;
+  const me = getSelf();
+  if(!me){ box.innerHTML=''; return; }
+  box.innerHTML = '';
+  for(const a of ACH_DEFS){
+    const got = (me.ach||[]).indexOf(a.id) >= 0;
+    const cur = me.title === a.title;
+    const row = document.createElement('div');
+    row.className = 'ach-row' + (got ? ' on' : '');
+    const info = document.createElement('div'); info.className = 'info';
+    const it = document.createElement('div'); it.className='it'; it.textContent = a.name;
+    const id = document.createElement('div'); id.className='id';
+    id.innerHTML = '<b>「'+a.title+'」</b> · ' + a.desc;
+    info.appendChild(it); info.appendChild(id);
+    const btn = document.createElement('button');
+    btn.textContent = cur ? '佩戴中' : (got ? '佩戴' : '未达成');
+    btn.disabled = !got || cur;
+    btn.onclick = ()=>{ setTitle(a.title); setTimeout(()=>{ buildAchList(); updateHUD(); }, 150); };
+    row.appendChild(info); row.appendChild(btn);
+    box.appendChild(row);
+  }
+  const row = document.createElement('div');
+  row.className = 'ach-row' + (me.title ? '' : ' on');
+  const info = document.createElement('div'); info.className='info';
+  const it = document.createElement('div'); it.className='it'; it.textContent='不佩称号';
+  const id = document.createElement('div'); id.className='id'; id.textContent='保持本名，名前不显示称号';
+  info.appendChild(it); info.appendChild(id);
+  const btn = document.createElement('button');
+  btn.textContent = me.title ? '卸下' : '当前';
+  btn.disabled = !me.title;
+  btn.onclick = ()=>{ setTitle(''); setTimeout(()=>{ buildAchList(); updateHUD(); }, 150); };
+  row.appendChild(info); row.appendChild(btn);
+  box.appendChild(row);
+}
+
+function openShop(){ G.shopOpen = true; buildArtList(); $('shopPanel').classList.remove('hidden'); $('shopBtn').classList.add('hidden'); }
 function closeShop(){ G.shopOpen = false; $('shopPanel').classList.add('hidden'); }
 function toggleShop(){
   if(G.mode!=='playing') return;
@@ -4987,6 +5521,7 @@ function closeSettings(){
 }
 function buildSettingsPanel(){
   buildCtrlOptions();
+  buildAchList();
   buildBindList();
 }
 
@@ -5358,6 +5893,7 @@ document.addEventListener('keydown', e=>{
         case 'swap': swapRoot(); break;
         case 'trial': tryTrial(); break;
         case 'leaveSect': leaveSect(); break;
+        case 'spar': spar(); break;
         case 'rage': toggleRage(); break;
         case 'shop': toggleShop(); break;
         case 'control': cycleControl(); break;
