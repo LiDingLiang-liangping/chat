@@ -253,8 +253,8 @@ input{font-family:inherit}
 /* 弹窗 */
 #shopPanel,#sectPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;
   width:min(390px,92vw);max-height:82vh;overflow-y:auto;
-  background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:20px;
-  box-shadow:0 20px 70px rgba(0,0,0,.6)}
+  background:rgba(10,22,19,.985);border:1px solid var(--line);border-radius:4px;padding:20px;
+  box-shadow:0 20px 70px rgba(0,0,0,.6);backdrop-filter:blur(8px)}
 #shopPanel h3,#sectPanel h3{font-family:"Songti SC","STSong",serif;font-size:19px;letter-spacing:4px;color:var(--gold-2);
   text-align:center;margin-bottom:4px}
 .shop-sub,.sect-sub{text-align:center;font-size:10.5px;color:var(--muted);margin-bottom:14px}
@@ -355,6 +355,69 @@ input{font-family:inherit}
 .cheat-chip.active{color:var(--gold-2);border-color:rgba(217,192,138,.6);background:rgba(217,192,138,.13)}
 .cheat-chip.locked{color:#d8c0ff;border-color:rgba(200,180,255,.55);background:rgba(200,180,255,.12)}
 
+/* ============ 设置面板 / 新手教程 ============ */
+#settingsPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:31;
+  width:min(430px,92vw);max-height:84vh;overflow-y:auto;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:20px;
+  box-shadow:0 20px 70px rgba(0,0,0,.6)}
+#settingsPanel h3{font-family:"Songti SC","STSong",serif;font-size:19px;letter-spacing:4px;color:var(--gold-2);
+  text-align:center;margin-bottom:4px}
+#settingsPanel .shop-sub{text-align:center;font-size:10.5px;color:var(--muted);margin-bottom:6px}
+.set-sec{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:2px;color:var(--gold);margin:14px 0 8px}
+.set-sec:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.set-sec .set-tip{letter-spacing:0;color:var(--muted);font-size:10px}
+.ctrl-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:6px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.1);border-radius:3px;background:rgba(255,255,255,.03)}
+.ctrl-opt.active{border-color:rgba(121,224,189,.55);background:rgba(121,224,189,.09)}
+.ctrl-opt.muted{opacity:.45;cursor:not-allowed}
+.ctrl-opt .co-t{font-size:12.5px;color:#e3dcc9}
+.ctrl-opt .co-d{font-size:10.5px;color:var(--muted);margin-top:2px}
+.ctrl-opt .co-dot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(217,192,138,.5);flex:0 0 auto}
+.ctrl-opt.active .co-dot{background:var(--jade);border-color:var(--jade);box-shadow:0 0 8px rgba(121,224,189,.6)}
+.bind-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.bind-row .bn{font-size:12px;color:#c3d0c9}
+.bind-row .bk{min-width:76px;padding:5px 10px;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;
+  border:1px solid rgba(217,192,138,.35);background:rgba(217,192,138,.07);color:var(--gold-2);border-radius:3px}
+.bind-row .bk:hover{background:rgba(217,192,138,.18)}
+.bind-row .bk.waiting{border-color:rgba(200,180,255,.75);color:#d8c8ff;background:rgba(200,180,255,.12);
+  animation:waitPulse 1s infinite}
+@keyframes waitPulse{0%,100%{opacity:1}50%{opacity:.5}}
+.set-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.set-row .info{flex:1}
+.set-row .t{font-size:12.5px;color:#e3dcc9}
+.set-row .d{font-size:10.5px;color:var(--muted);margin-top:2px}
+.set-row button{padding:6px 11px;font-size:11px;border:1px solid rgba(217,192,138,.4);
+  background:rgba(217,192,138,.08);color:var(--gold-2);border-radius:2px;white-space:nowrap}
+#settingsClose{width:100%;margin-top:14px;padding:9px;background:transparent;border:1px solid rgba(255,255,255,.14);
+  color:#b9c7c0;font-size:12px;border-radius:2px}
+#settingsClose:hover{background:rgba(255,255,255,.06)}
+
+#tutorialBox{position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:24;
+  width:min(430px,92vw);padding:14px 16px 12px;backdrop-filter:blur(4px);
+  background:linear-gradient(160deg,rgba(12,26,23,.95),rgba(6,15,13,.96));
+  border:1px solid rgba(217,192,138,.45);border-radius:4px;box-shadow:0 14px 44px rgba(0,0,0,.5)}
+#tutorialBox:before{content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.tu-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.tu-badge{font-size:10px;letter-spacing:2px;color:var(--gold);border:1px solid rgba(217,192,138,.4);
+  padding:2px 8px;border-radius:10px}
+.tu-step{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+#tutorialBox h4{font-family:"Songti SC","STSong",serif;font-size:16px;letter-spacing:2px;color:var(--gold-2);margin-bottom:6px}
+#tutorialBox p{font-size:12px;line-height:1.85;color:#bfd0c8;min-height:52px}
+.tu-btns{display:flex;gap:8px;margin-top:10px}
+.tu-btns button{flex:1;padding:7px;font-size:11.5px;border-radius:2px;
+  border:1px solid rgba(255,255,255,.14);background:transparent;color:#b9c7c0}
+.tu-btns button.primary{border-color:rgba(217,192,138,.55);background:rgba(217,192,138,.14);color:var(--gold-2)}
+.tu-btns button.skip{flex:0 0 76px;color:var(--muted)}
+#tutorialBox.flash{animation:tuFlash .5s ease}
+@keyframes tuFlash{0%{box-shadow:0 0 0 rgba(217,192,138,0)}50%{box-shadow:0 0 28px rgba(217,192,138,.45)}100%{box-shadow:0 14px 44px rgba(0,0,0,.5)}}
+@media (max-width:560px){
+  #tutorialBox{top:84px;width:calc(100vw - 24px)}
+  #settingsPanel{max-height:78vh}
+  #topbar .stats>span:nth-child(4),#topbar .stats>span:nth-child(5){display:none}
+}
+
 </style>
 </head>
 <body>
@@ -380,6 +443,7 @@ input{font-family:inherit}
       <span>煞气 <b id="grudgeNum">0</b></span>
       <span>在线 <b id="online">1</b></span>
       <span id="ping">-- ms</span>
+      <button class="icon-btn" id="settingBtn" title="设置 · 键位与操作方式（O）">⚙</button>
       <button class="icon-btn" id="muteBtn" title="音效开关">🔊</button>
     </div>
   </header>
@@ -495,16 +559,7 @@ input{font-family:inherit}
     <div class="features"><span>🧘 打坐纳气</span><span>⚔️ 五行斗法</span><span>🌌 秘境秘法</span></div>
     <details class="help">
       <summary>操作与玩法</summary>
-      <div class="help-body">
-        <b>移动</b>：WASD / 方向键，移动端左下摇杆；P 循环切换操作方式<br>
-        <b>战斗</b>：空格普攻；1–5 五行攻击；6–7 回血；8–9 遁术<br>
-        <b>秘法</b>：0 秘境秘法，Q 宗门秘法（需先习得）<br>
-        <b>修行</b>：R 打坐纳气，E 采草药；H 服药，G 服雷草引雷劫<br>
-        <b>破境</b>：修为满后按 B 突破，失败损失三成修为<br>
-        <b>宗门</b>：靠近山门按 T 试炼；入宗后按 K 退宗；V 魔鬼狂暴<br>
-        <b>坊市</b>：走到青云坊市按 F 交易丹药与草药<br>
-        <b>聊天</b>：Enter 输入，再按 Enter 发送
-      </div>
+      <div class="help-body" id="helpBody"></div>
     </details>
   </div>
 </div>
@@ -537,6 +592,45 @@ input{font-family:inherit}
   <div class="shop-sub" id="sectPanelSub">择一山头拜入</div>
   <div id="sectPeakList"></div>
   <button id="sectClose">再想想</button>
+</div>
+
+<!-- ================= 设置（键位绑定 / 操作方式 / 教程） ================= -->
+<div id="settingsPanel" class="hidden">
+  <h3>设 置</h3>
+  <p class="shop-sub">操作方式 · 键位绑定 · 新手教程</p>
+
+  <div class="set-sec">操作方式</div>
+  <div id="ctrlOptions"></div>
+
+  <div class="set-sec">教程与按键</div>
+  <div class="set-row">
+    <div class="info"><div class="t">重看新手教程</div><div class="d">从第一步重新阅读操作引导</div></div>
+    <button id="replayTut">重看</button>
+  </div>
+  <div class="set-row">
+    <div class="info"><div class="t">恢复默认键位</div><div class="d">把所有按键还原为初始设置</div></div>
+    <button id="resetBinds">恢复</button>
+  </div>
+
+  <div class="set-sec">键位绑定<span class="set-tip">点按键后按新键，Esc 取消</span></div>
+  <div id="bindList"></div>
+
+  <button id="settingsClose">关 闭</button>
+</div>
+
+<!-- ================= 新手教程 ================= -->
+<div id="tutorialBox" class="hidden">
+  <div class="tu-head">
+    <span class="tu-badge">新手教程</span>
+    <span class="tu-step" id="tuStep">1 / 9</span>
+  </div>
+  <h4 id="tuTitle"></h4>
+  <p id="tuText"></p>
+  <div class="tu-btns">
+    <button id="tuPrev">上一步</button>
+    <button id="tuNext" class="primary">下一步</button>
+    <button id="tuSkip" class="skip">跳过</button>
+  </div>
 </div>
 
 <!-- ================= 隐藏挂界面（口令解锁，无外部提示） ================= -->
@@ -831,6 +925,111 @@ const CONTROL_INFO = {
   facing: { name:'意随心动', desc:'鼠标指哪人朝哪，W 向鼠标方向走' },
   lockon: { name:'灵觉锁敌', desc:'攻击自动锁定最近妖兽，WASD 绝对移动', femaleOnly:true },
 };
+
+/* ---------------- 键位绑定 ---------------- */
+/* 全部按键集中于此，设置面板可直接改键；默认值即旧版硬编码键位 */
+const DEFAULT_BINDS = {
+  moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
+  basic:'Space',
+  s1:'Digit1', s2:'Digit2', s3:'Digit3', s4:'Digit4', s5:'Digit5',
+  s6:'Digit6', s7:'Digit7', s8:'Digit8', s9:'Digit9',
+  secret:'Digit0', sect:'KeyQ',
+  meditate:'KeyR', gather:'KeyE', herb:'KeyH',
+  healPill:'KeyU', expPill:'KeyJ', thunder:'KeyG', break:'KeyB', swap:'KeyX',
+  shop:'KeyF', trial:'KeyT', leaveSect:'KeyK', rage:'KeyV',
+  settings:'KeyO', control:'KeyP', mute:'KeyM', chat:'Enter',
+};
+
+const BIND_ACTIONS = [
+  { id:'moveUp',   name:'向上移动',   group:'移动' },
+  { id:'moveDown', name:'向下移动',   group:'移动' },
+  { id:'moveLeft', name:'向左移动',   group:'移动' },
+  { id:'moveRight',name:'向右移动',   group:'移动' },
+  { id:'basic',    name:'普通攻击',   group:'战斗' },
+  { id:'s1', name:'技能 1', group:'战斗' },
+  { id:'s2', name:'技能 2', group:'战斗' },
+  { id:'s3', name:'技能 3', group:'战斗' },
+  { id:'s4', name:'技能 4', group:'战斗' },
+  { id:'s5', name:'技能 5', group:'战斗' },
+  { id:'s6', name:'技能 6', group:'战斗' },
+  { id:'s7', name:'技能 7', group:'战斗' },
+  { id:'s8', name:'技能 8', group:'战斗' },
+  { id:'s9', name:'技能 9', group:'战斗' },
+  { id:'secret',   name:'秘境秘法',   group:'战斗' },
+  { id:'sect',     name:'宗门秘法',   group:'战斗' },
+  { id:'meditate', name:'打坐纳气',   group:'修行' },
+  { id:'gather',   name:'采集草药',   group:'修行' },
+  { id:'herb',     name:'服用草药',   group:'修行' },
+  { id:'healPill', name:'回春丹',     group:'修行' },
+  { id:'expPill',  name:'聚气丹',     group:'修行' },
+  { id:'thunder',  name:'服雷草引雷', group:'修行' },
+  { id:'break',    name:'破境',       group:'修行' },
+  { id:'swap',     name:'切换灵根',   group:'修行' },
+  { id:'shop',     name:'坊市',       group:'交互' },
+  { id:'trial',    name:'宗门试炼',   group:'交互' },
+  { id:'leaveSect',name:'退出宗门',   group:'交互' },
+  { id:'rage',     name:'魔鬼狂暴',   group:'交互' },
+  { id:'settings', name:'打开设置',   group:'系统' },
+  { id:'control',  name:'切换操作方式', group:'系统' },
+  { id:'mute',     name:'音效开关',   group:'系统' },
+  { id:'chat',     name:'聊天输入',   group:'系统' },
+];
+
+const BIND_STORE_KEY = 'qw_binds_v1';
+
+/* 按键显示名 */
+function keyLabel(code){
+  if(!code) return '—';
+  const m = {
+    Space:'空格', Enter:'回车', Escape:'Esc', Tab:'Tab',
+    ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→',
+    Backquote:'`', Minus:'-', Equal:'=', Backspace:'退格',
+    Comma:',', Period:'.', Slash:'/', Semicolon:';', Quote:"'",
+    BracketLeft:'[', BracketRight:']', Backslash:'\\',
+    LeftShift:'左Shift', RightShift:'右Shift', LeftCtrl:'左Ctrl', RightCtrl:'右Ctrl',
+  };
+  if(m[code]) return m[code];
+  if(code.startsWith('Key')) return code.slice(3);
+  if(code.startsWith('Digit')) return code.slice(5);
+  if(code.startsWith('Numpad')) return '小键盘'+code.slice(6);
+  if(/^F\d+$/.test(code)) return code;
+  return code;
+}
+function bindLabel(actionId){ return keyLabel(BINDS[actionId]); }
+
+/* 读取 / 保存（localStorage 不可用时静默降级为默认） */
+function loadBinds(){
+  const out = Object.assign({}, DEFAULT_BINDS);
+  try{
+    const raw = localStorage.getItem(BIND_STORE_KEY);
+    if(raw){
+      const saved = JSON.parse(raw);
+      for(const k in out){
+        if(saved && typeof saved[k] === 'string' && saved[k]) out[k] = saved[k];
+      }
+    }
+  }catch(e){}
+  return out;
+}
+function saveBinds(){
+  try{ localStorage.setItem(BIND_STORE_KEY, JSON.stringify(BINDS)); }catch(e){}
+}
+let BINDS = loadBinds();
+let rebindingId = null;
+
+function bindName(id){
+  const a = BIND_ACTIONS.find(x=>x.id===id);
+  return a ? a.name : id;
+}
+
+/* 键位冲突检测：返回占用该键的动作名 */
+function bindOwner(code, exceptId){
+  for(const a of BIND_ACTIONS){
+    if(a.id === exceptId) continue;
+    if(BINDS[a.id] === code) return a.name;
+  }
+  return '';
+}
 
 /* 隐藏预设（内置挂三档，互斥，切换即替换） */
 const CHEAT_PRESETS = {
@@ -2620,7 +2819,7 @@ function onInit(d){
   G.roomName = d.room || G.roomName;
   startPlaying(false);
   addSys(`你踏入了「${G.roomName}」`, 'gold');
-  addSys('按 R 打坐纳气，E 采药，B 破境，靠近传送门可入秘境');
+  addSys('按 '+bindLabel('meditate')+' 打坐纳气，'+bindLabel('gather')+' 采药，'+bindLabel('break')+' 破境，靠近传送门可入秘境');
 }
 
 function onSnapshot(d){
@@ -4282,6 +4481,7 @@ function cycleControl(){
   const me = getSelf();
   if(G.isHost){ if(me) me.control = next; }
   else send({ type:'control', control:next });
+  if(G.settingsOpen) buildCtrlOptions();
   toast(CONTROL_INFO[next].name, 'jade');
 }
 
@@ -4350,6 +4550,23 @@ function syncCtrlUI(){
   });
 }
 
+/* 登录页「操作与玩法」随当前键位生成 */
+function renderLoginHelp(){
+  const body = $('helpBody');
+  if(!body) return;
+  const k = bindLabel;
+  body.innerHTML =
+    '<b>移动</b>：'+k('moveUp')+' / '+k('moveLeft')+' / '+k('moveDown')+' / '+k('moveRight')+' 或方向键，移动端左下摇杆<br>'+
+    '<b>战斗</b>：'+k('basic')+' 普攻；'+k('s1')+'–'+k('s9')+' 九式五行技能（6–7 回血、8–9 遁术）<br>'+
+    '<b>秘法</b>：'+k('secret')+' 秘境秘法，'+k('sect')+' 宗门秘法（需先习得）<br>'+
+    '<b>修行</b>：'+k('meditate')+' 打坐纳气，'+k('gather')+' 采草药；'+k('herb')+' 服草药，'+k('thunder')+' 服雷草引雷劫<br>'+
+    '<b>破境</b>：修为满后按 '+k('break')+' 突破，失败损失三成修为<br>'+
+    '<b>宗门</b>：靠近山门按 '+k('trial')+' 试炼；入宗后按 '+k('leaveSect')+' 退宗；'+k('rage')+' 魔鬼狂暴<br>'+
+    '<b>坊市</b>：走到青云坊市按 '+k('shop')+' 交易丹药与草药<br>'+
+    '<b>聊天</b>：'+k('chat')+' 输入并发送<br>'+
+    '<b>设置</b>：进游戏后点右上角 ⚙ 或按 '+k('settings')+'，可改键位、切换操作方式、重看新手教程';
+}
+
 /* ---------------- 聊天 / 提示 ---------------- */
 function toast(text, cls){
   const d = document.createElement('div');
@@ -4385,21 +4602,22 @@ let dockSig = '';
 function buildSkillDock(me){
   const el = activeEl(me);
   const secret = firstSecretOf(me);
-  const sig = [el, me.activeRoot, !!secret, me.sect, me.root.length].join('|') + (secret?secret.name:'');
+  const sig = [el, me.activeRoot, !!secret, me.sect, me.root.length].join('|')
+            + (secret?secret.name:'') + '|' + BIND_ACTIONS.map(a=>BINDS[a.id]).join(',');
   if(sig === dockSig) return;
   dockSig = sig;
 
   const list = [];
-  list.push({ key:'basic', icon:'⚔', name:'普攻', keyLabel:'空格', cls:'basic' });
+  list.push({ key:'basic', icon:'⚔', name:'普攻', keyLabel:bindLabel('basic'), cls:'basic' });
   ELEMENT_SKILLS[el].forEach((sk,i)=>{
-    list.push({ key:sk.key, icon:sk.icon, name:sk.name, keyLabel:String(i+1), cls:'' });
+    list.push({ key:sk.key, icon:sk.icon, name:sk.name, keyLabel:bindLabel('s'+(i+1)), cls:'' });
   });
   if(secret){
-    list.push({ key:'secret', icon:'✵', name:secret.name, keyLabel:'0', cls:'secret' });
+    list.push({ key:'secret', icon:'✵', name:secret.name, keyLabel:bindLabel('secret'), cls:'secret' });
   }
   if(me.sect){
     const ss = SECT_SKILLS[me.sect];
-    list.push({ key:'sect', icon:'⚚', name:ss.name, keyLabel:'Q', cls:'sect' });
+    list.push({ key:'sect', icon:'⚚', name:ss.name, keyLabel:bindLabel('sect'), cls:'sect' });
   }
 
   const dock = $('skillDock');
@@ -4534,7 +4752,7 @@ function updateHUD(){
   }
   chips += `<span class="herb-chip ${inv.thunder?'':'zero'}" data-el="thunder">雷 ${inv.thunder||0}</span>`;
   hp.innerHTML = `<div class="panel-title">草药囊</div><div class="herb-row">${chips}</div>
-    <div class="herb-tip">H 服药（相生属性回血更厚） · G 服雷草引雷劫</div>`;
+    <div class="herb-tip">${bindLabel('herb')} 服药（相生属性回血更厚） · ${bindLabel('thunder')} 服雷草引雷劫</div>`;
   hp.querySelectorAll('.herb-chip').forEach(c=>{
     c.onclick = ()=>{ if(c.dataset.el==='thunder') useThunderHerb(); else useHerb(); };
   });
@@ -4551,6 +4769,7 @@ function updateHUD(){
   }
 
   updateHint(me, x, y);
+  tutorialTick(me, x, y);
 }
 
 function updateHint(me, x, y){
@@ -4559,16 +4778,16 @@ function updateHint(me, x, y){
     hint = '走到南侧「归途」门可返回青云界';
   }else{
     const site = sectSiteAt(x,y);
-    if(site && !me.sect && G.sectsOn) hint = '按 T 接受'+site.sect.name+'试炼';
-    else if(me.devil) hint = 'V 开关狂暴 · 魔鬼只能杀戮妖兽';
+    if(site && !me.sect && G.sectsOn) hint = '按 '+bindLabel('trial')+' 接受'+site.sect.name+'试炼';
+    else if(me.devil) hint = bindLabel('rage')+' 开关狂暴 · 魔鬼只能杀戮妖兽';
     else {
       let nearPortal = null;
       for(const pt of G.portals) if(dist(x,y,pt.x,pt.y)<120) nearPortal = pt;
       if(nearPortal) hint = '走近'+SECRET_NAMES[nearPortal.el]+'传送门即可踏入';
-      else if(zoneInfoAt(x,y).name==='青云坊市') hint = '按 F 打开坊市';
-      else if(me.herbInv && me.herbInv.thunder>0) hint = 'G 服雷草，主动引动雷劫';
-      else if(me.hp < me.maxHp*0.5 && Object.values(me.herbInv||{}).some(v=>v>0)) hint = 'H 服草药回血';
-      else if(me.root.length>1) hint = 'X 切换灵根（'+elName(me.root[0])+' / '+elName(me.root[1])+'）';
+      else if(zoneInfoAt(x,y).name==='青云坊市') hint = '按 '+bindLabel('shop')+' 打开坊市';
+      else if(me.herbInv && me.herbInv.thunder>0) hint = bindLabel('thunder')+' 服雷草，主动引动雷劫';
+      else if(me.hp < me.maxHp*0.5 && Object.values(me.herbInv||{}).some(v=>v>0)) hint = bindLabel('herb')+' 服草药回血';
+      else if(me.root.length>1) hint = bindLabel('swap')+' 切换灵根（'+elName(me.root[0])+' / '+elName(me.root[1])+'）';
     }
   }
   if(hint !== G.lastHint){
@@ -4674,7 +4893,237 @@ function startPlaying(isHost){
   }
   const me = getSelf();
   if(me) buildSkillDock(me);
-  addSys('按 R 打坐纳气，按 E 采药，按 B 破境','');
+  addSys('按 '+bindLabel('meditate')+' 打坐纳气，'+bindLabel('gather')+' 采药，'+bindLabel('break')+' 破境，'+bindLabel('settings')+' 打开设置','');
+  if(!tutorialSeen()) setTimeout(()=>{ if(G.mode==='playing' && !tutOn) startTutorial(); }, 900);
+}
+
+/* ---------------- 设置面板：操作方式 / 键位绑定 ---------------- */
+G.settingsOpen = false;
+
+function toggleSettings(){
+  if(G.mode!=='playing') return;
+  if(G.settingsOpen) closeSettings(); else openSettings();
+}
+function openSettings(){
+  if(G.mode!=='playing') return;
+  cancelRebind();
+  G.settingsOpen = true;
+  $('settingsPanel').classList.remove('hidden');
+  $('settingsPanel').scrollTop = 0;
+  buildSettingsPanel();
+  if(tutOn){ $('tutorialBox').classList.add('hidden'); G.tutPausedBySettings = true; }
+}
+function closeSettings(){
+  if(!G.settingsOpen) return;
+  cancelRebind();
+  G.settingsOpen = false;
+  $('settingsPanel').classList.add('hidden');
+  if(tutOn && G.tutPausedBySettings){
+    G.tutPausedBySettings = false;
+    $('tutorialBox').classList.remove('hidden');
+    renderTutorial();
+  }
+}
+function buildSettingsPanel(){
+  buildCtrlOptions();
+  buildBindList();
+}
+
+/* 操作方式三选一（与登录页同一套模式） */
+function buildCtrlOptions(){
+  const box = $('ctrlOptions');
+  box.innerHTML = '';
+  ['classic','facing','lockon'].forEach(key=>{
+    const info = CONTROL_INFO[key];
+    const blocked = !!info.femaleOnly && G.gender !== 'female';
+    const row = document.createElement('div');
+    row.className = 'ctrl-opt' + (G.control===key?' active':'') + (blocked?' muted':'');
+    row.innerHTML = '<span class="co-dot"></span><div><div class="co-t">'+info.name
+      + (info.femaleOnly?' · 女修专属':'') + '</div><div class="co-d">'+info.desc+'</div></div>';
+    row.onclick = ()=>{
+      if(blocked){ toast('灵觉锁敌为女修专属',''); return; }
+      setControlMode(key);
+    };
+    box.appendChild(row);
+  });
+}
+function setControlMode(key){
+  if(!CONTROL_INFO[key]) return;
+  if(key==='lockon' && G.gender!=='female'){ toast('灵觉锁敌为女修专属',''); return; }
+  G.control = key;
+  const me = getSelf();
+  if(me) me.control = key;
+  if(!G.isHost) send({ type:'control', control:key });
+  syncCtrlUI();
+  buildCtrlOptions();
+  toast('操作方式：'+CONTROL_INFO[key].name,'jade');
+}
+
+/* 键位列表 */
+function buildBindList(){
+  const box = $('bindList');
+  box.innerHTML = '';
+  let group = '';
+  for(const a of BIND_ACTIONS){
+    if(a.group !== group){
+      group = a.group;
+      const h = document.createElement('div');
+      h.className = 'set-sec';
+      h.textContent = group;
+      box.appendChild(h);
+    }
+    const row = document.createElement('div');
+    row.className = 'bind-row';
+    const nm = document.createElement('span');
+    nm.className = 'bn';
+    nm.textContent = a.name;
+    const btn = document.createElement('button');
+    btn.className = 'bk' + (rebindingId===a.id?' waiting':'');
+    btn.textContent = rebindingId===a.id ? '按下新键…' : keyLabel(BINDS[a.id]);
+    btn.onclick = ()=> startRebind(a.id);
+    row.appendChild(nm);
+    row.appendChild(btn);
+    box.appendChild(row);
+  }
+}
+function startRebind(id){
+  if(!BIND_ACTIONS.some(a=>a.id===id)) return;
+  rebindingId = id;
+  buildBindList();
+}
+function cancelRebind(){
+  if(!rebindingId) return;
+  rebindingId = null;
+  if(G.settingsOpen) buildBindList();
+}
+function handleRebindKey(e){
+  try{ e.preventDefault(); }catch(err){}
+  const id = rebindingId;
+  if(!id) return;
+  if(e.code==='Escape'){ rebindingId = null; buildBindList(); return; }
+  const code = e.code || '';
+  if(!code || /^(Shift|Control|Alt|Meta|CapsLock|Tab)$/.test(code)){ toast('这个键不能绑定',''); return; }
+  const owner = bindOwner(code, id);
+  if(owner){ toast('该键已被「'+owner+'」占用',''); return; }
+  BINDS[id] = code;
+  saveBinds();
+  rebindingId = null;
+  buildBindList();
+  dockSig = '';
+  toast('已绑定：'+bindName(id)+' → '+keyLabel(code),'jade');
+}
+function resetBinds(){
+  BINDS = Object.assign({}, DEFAULT_BINDS);
+  saveBinds();
+  rebindingId = null;
+  buildBindList();
+  dockSig = '';
+  toast('键位已恢复默认','jade');
+}
+
+/* ---------------- 新手教程 ---------------- */
+const TUT_STORE_KEY = 'qw_tutorial_done_v1';
+let tutOn = false, tutIdx = 0, tutMoveFrom = null, tutMoveTicks = 0;
+
+function tutorialSeen(){
+  try{ return localStorage.getItem(TUT_STORE_KEY)==='1'; }catch(e){ return false; }
+}
+function markTutorialSeen(){
+  try{ localStorage.setItem(TUT_STORE_KEY,'1'); }catch(e){}
+}
+function tutSteps(){
+  const k = bindLabel;
+  return [
+    { t:'欢迎来到青云问道',
+      d:'这是同心四环的修仙世界：越靠外的环，妖兽越强、灵气越浓。境界决定你能走多远——炼气期只能在前两环活动，筑基后开第三环，金丹后才进得了第四环。' },
+    { t:'先学会走路',
+      d:k('moveUp')+' / '+k('moveLeft')+' / '+k('moveDown')+' / '+k('moveRight')+' 移动，鼠标决定攻击方向。想改键或换操作方式，按 '+k('settings')+' 打开设置即可。',
+      auto:'move' },
+    { t:'打坐纳气',
+      d:'按 '+k('meditate')+' 打坐，原地吸纳灵气：脚下灵气越浓，修为涨得越快；一旦移动就会中断。',
+      auto:'med' },
+    { t:'采集草药',
+      d:'走到草药旁按 '+k('gather')+' 采集；按 '+k('herb')+' 服用，同时回气血与灵力。与自身灵根相生的草药效果更好。',
+      auto:'gather' },
+    { t:'第一次出手',
+      d:'按 '+k('basic')+' 普攻，'+k('s1')+'–'+k('s9')+' 是九式五行技能（6–7 回血、8–9 遁术）。五行相克时伤害 +35%，被克则减半。',
+      auto:'kill' },
+    { t:'破境',
+      d:'修为条满后按 '+k('break')+' 破境。境界越高成功率越低，失败会损失三成修为，先攒够再点。' },
+    { t:'坊市与宗门',
+      d:'走到青云坊市按 '+k('shop')+' 买卖丹药与草药；靠近宗门山门按 '+k('trial')+' 试炼，入宗后按 '+k('sect')+' 放宗门秘法。' },
+    { t:'秘境与雷劫',
+      d:'金色传送门每 20 秒换位，踏入即进入对应五行的秘境，击败 BOSS 可习得秘境秘法。主动攻击道友会积累煞气，满 100 会引来雷劫，出手前想清楚。' },
+    { t:'出发吧',
+      d:'教程结束。按 '+k('settings')+' 可随时查看或修改键位，祝道友早日化神。' },
+  ];
+}
+function startTutorial(){
+  tutOn = true;
+  tutIdx = 0;
+  tutMoveFrom = null; tutMoveTicks = 0;
+  if(G.settingsOpen){            // 设置面板优先，关闭后再显示教程
+    G.tutPausedBySettings = true;
+    $('tutorialBox').classList.add('hidden');
+    return;
+  }
+  $('tutorialBox').classList.remove('hidden');
+  renderTutorial();
+}
+function renderTutorial(){
+  const steps = tutSteps();
+  const st = steps[tutIdx] || steps[0];
+  $('tuStep').textContent = (tutIdx+1) + ' / ' + steps.length;
+  $('tuTitle').textContent = st.t;
+  $('tuText').textContent = st.d;
+  $('tuPrev').style.visibility = tutIdx===0 ? 'hidden' : 'visible';
+  $('tuNext').textContent = tutIdx===steps.length-1 ? '开始修行' : '下一步';
+  const box = $('tutorialBox');
+  box.classList.remove('flash');
+  void box.offsetWidth;
+  box.classList.add('flash');
+}
+function tutorialNext(){
+  const steps = tutSteps();
+  if(tutIdx >= steps.length-1){ endTutorial(false); return; }
+  tutIdx++;
+  tutMoveFrom = null; tutMoveTicks = 0;
+  renderTutorial();
+}
+function tutorialPrev(){
+  if(tutIdx<=0) return;
+  tutIdx--;
+  tutMoveFrom = null; tutMoveTicks = 0;
+  renderTutorial();
+}
+function endTutorial(skipped){
+  tutOn = false;
+  G.tutPausedBySettings = false;
+  markTutorialSeen();
+  $('tutorialBox').classList.add('hidden');
+  if(skipped) addSys('教程已跳过，按 '+bindLabel('settings')+' 可重看','');
+}
+/* 做到对应动作自动进入下一步 */
+function tutorialTick(me, x, y){
+  if(!tutOn || !me) return;
+  const steps = tutSteps();
+  const st = steps[tutIdx];
+  if(!st || !st.auto) return;
+  if(st.auto==='move'){
+    if(!tutMoveFrom){ tutMoveFrom = { x:x, y:y }; tutMoveTicks = 0; }
+    // 有移动输入（哪怕撞墙）或位移超过 30，都算学会移动
+    const mv = computeMoveVector(x, y);
+    const pressing = Math.abs(mv.x) + Math.abs(mv.y) > 0.15
+                  || dist(tutMoveFrom.x, tutMoveFrom.y, x, y) > 30;
+    tutMoveTicks = pressing ? tutMoveTicks + 1 : 0;
+    if(tutMoveTicks >= 5) tutorialNext();
+  }else if(st.auto==='med'){
+    if(me.meditating) tutorialNext();
+  }else if(st.auto==='gather'){
+    if((me.gathered||0) >= 1) tutorialNext();
+  }else if(st.auto==='kill'){
+    if((me.kills||0) >= 1) tutorialNext();
+  }
 }
 
 /* ---------------- 隐藏内置挂面板 ---------------- */
@@ -4798,54 +5247,73 @@ window.Gme = function(){
 'use strict';
 
 function syncKeys(){
-  input.up = !!(KEYS['KeyW']||KEYS['ArrowUp']);
-  input.down = !!(KEYS['KeyS']||KEYS['ArrowDown']);
-  input.left = !!(KEYS['KeyA']||KEYS['ArrowLeft']);
-  input.right = !!(KEYS['KeyD']||KEYS['ArrowRight']);
+  input.up = !!(KEYS[BINDS.moveUp]||KEYS['ArrowUp']);
+  input.down = !!(KEYS[BINDS.moveDown]||KEYS['ArrowDown']);
+  input.left = !!(KEYS[BINDS.moveLeft]||KEYS['ArrowLeft']);
+  input.right = !!(KEYS[BINDS.moveRight]||KEYS['ArrowRight']);
+}
+
+/* 按键码 → 动作名 */
+function actionOf(code){
+  for(const a of BIND_ACTIONS) if(BINDS[a.id] === code) return a.id;
+  return null;
 }
 
 document.addEventListener('keydown', e=>{
-  if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')) return;
+  const tgt = e.target;
+  if(tgt && (tgt.tagName==='INPUT' || tgt.tagName==='TEXTAREA')) return;   // 聊天输入中不抢键
+  if(rebindingId){ handleRebindKey(e); return; }
   if(G.mode!=='playing') return;
+
   KEYS[e.code] = true;
   syncKeys();
 
-  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat) cast('basic'); }
-  else if(e.code==='Digit1'){ if(!e.repeat) cast('1'); }
-  else if(e.code==='Digit2'){ if(!e.repeat) cast('2'); }
-  else if(e.code==='Digit3'){ if(!e.repeat) cast('3'); }
-  else if(e.code==='Digit4'){ if(!e.repeat) cast('4'); }
-  else if(e.code==='Digit5'){ if(!e.repeat) cast('5'); }
-  else if(e.code==='Digit6'){ if(!e.repeat) cast('6'); }
-  else if(e.code==='Digit7'){ if(!e.repeat) cast('7'); }
-  else if(e.code==='Digit8'){ if(!e.repeat) cast('8'); }
-  else if(e.code==='Digit9'){ if(!e.repeat) cast('9'); }
-  else if(e.code==='Digit0'){ if(!e.repeat) cast('secret'); }
-  else if(e.code==='KeyQ'){ if(!e.repeat) cast('sect'); }
-  else if(e.code==='KeyX'){ if(!e.repeat) swapRoot(); }
-  else if(e.code==='KeyE'){ if(!e.repeat) gather(); }
-  else if(e.code==='KeyB'){ if(!e.repeat) requestBreak(); }
-  else if(e.code==='KeyH'){ if(!e.repeat) useHerb(); }
-  else if(e.code==='KeyU'){ if(!e.repeat) useItem('heal'); }
-  else if(e.code==='KeyJ'){ if(!e.repeat) useItem('exp'); }
-  else if(e.code==='KeyG'){ if(!e.repeat) useThunderHerb(); }
-  else if(e.code==='KeyT'){ if(!e.repeat) tryTrial(); }
-  else if(e.code==='KeyK'){ if(!e.repeat) leaveSect(); }
-  else if(e.code==='KeyV'){ if(!e.repeat) toggleRage(); }
-  else if(e.code==='KeyF'){ if(!e.repeat) toggleShop(); }
-  else if(e.code==='KeyM'){ if(!e.repeat) toggleMute(); }
-  else if(e.code==='KeyP'){ if(!e.repeat) cycleControl(); }
-  else if(e.code==='KeyR'){ input.med = true; }
-  else if(e.code==='Enter'){ e.preventDefault(); $('chatInput').focus(); }
-  else if(e.code==='Escape'){ closeShop(); closeSectPanel(); $('chatInput').blur(); }
+  if(e.code==='Escape'){
+    cancelRebind();
+    closeSettings();
+    closeShop();
+    closeSectPanel();
+    $('chatInput').blur();
+    return;
+  }
 
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  const act = actionOf(e.code);
+  if(act){
+    if(act==='meditate'){ input.med = true; }
+    else if(!e.repeat){
+      switch(act){
+        case 'basic': cast('basic'); break;
+        case 's1': case 's2': case 's3': case 's4': case 's5':
+        case 's6': case 's7': case 's8': case 's9':
+          cast(act.slice(1)); break;
+        case 'secret': cast('secret'); break;
+        case 'sect': cast('sect'); break;
+        case 'gather': gather(); break;
+        case 'break': requestBreak(); break;
+        case 'herb': useHerb(); break;
+        case 'healPill': useItem('heal'); break;
+        case 'expPill': useItem('exp'); break;
+        case 'thunder': useThunderHerb(); break;
+        case 'swap': swapRoot(); break;
+        case 'trial': tryTrial(); break;
+        case 'leaveSect': leaveSect(); break;
+        case 'rage': toggleRage(); break;
+        case 'shop': toggleShop(); break;
+        case 'control': cycleControl(); break;
+        case 'mute': toggleMute(); break;
+        case 'settings': toggleSettings(); break;
+        case 'chat': e.preventDefault(); $('chatInput').focus(); break;
+      }
+    }
+  }
+
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
 });
 
 document.addEventListener('keyup', e=>{
   KEYS[e.code] = false;
   syncKeys();
-  if(e.code==='KeyR') input.med = false;
+  if(actionOf(e.code) === 'meditate') input.med = false;
 });
 
 window.addEventListener('blur', ()=>{
@@ -4933,6 +5401,13 @@ document.querySelectorAll('#shopPanel [data-buy]').forEach(el=>{
 });
 $('backLogin').onclick = ()=> location.reload();
 $('muteBtn').onclick = ()=> toggleMute();
+$('settingBtn').onclick = ()=> toggleSettings();
+$('settingsClose').onclick = ()=> closeSettings();
+$('resetBinds').onclick = ()=> resetBinds();
+$('replayTut').onclick = ()=>{ closeSettings(); tutIdx=0; startTutorial(); };
+$('tuPrev').onclick = ()=> tutorialPrev();
+$('tuNext').onclick = ()=> tutorialNext();
+$('tuSkip').onclick = ()=> endTutorial(true);
 
 function toggleMute(){
   G.muted = !G.muted;
@@ -4964,6 +5439,7 @@ $('roomInput').addEventListener('keydown', e=>{ if(e.key==='Enter') startNet(tru
 
 /* 登录选择绑定 */
 bindLoginUI();
+renderLoginHelp();
 
 /* 生成世界并开始渲染 */
 generateWorld();
