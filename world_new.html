@@ -640,6 +640,12 @@ input{font-family:inherit}
   <div class="set-sec">操作方式</div>
   <div id="ctrlOptions"></div>
 
+  <div class="set-sec">战斗</div>
+  <div class="set-row">
+    <div class="info"><div class="t">友伤</div><div class="d">关闭时群攻、飞剑不会伤到身边道友，切磋不受影响</div></div>
+    <button id="ffToggle">关闭</button>
+  </div>
+
   <div class="set-sec">教程与按键</div>
   <div class="set-row">
     <div class="info"><div class="t">重看新手教程</div><div class="d">从第一步重新阅读操作引导</div></div>
@@ -1280,6 +1286,7 @@ const G = {
   gender:'male',
   root:'fire',
   control:'classic',
+  ff:(function(){ try{ return localStorage.getItem('qw_ff_v1')==='1'; }catch(e){ return false; } })(),
   sectsOn:true,
 
   area:'world',          // world | secret
@@ -3091,6 +3098,7 @@ function handleHostData(conn, d){
     case 'rage': hostRage(id); break;
     case 'cheat': hostCheat(id, d.action, d.payload||{}); break;
     case 'control': hostControl(id, d.control); break;
+    case 'ff': hostFF(id, d.on); break;
     case 'trial': hostTrial(id); break;
     case 'joinsect': hostJoinSect(id, d.sectId, Number(d.peak)|0); break;
     case 'leavesect': hostLeaveSect(id); break;
@@ -3333,6 +3341,7 @@ function makePlayer(id,name,x,y,opt){
     root: (opt.root && opt.root.length) ? opt.root.slice(0,2) : ['fire'],
     activeRoot: 0,
     control: opt.control || 'classic',
+    ff: opt.ff !== undefined ? !!opt.ff : false,
     x, y, dir:1, mx:0, my:0,
     hp:info.maxHp, maxHp:info.maxHp,
     mp:info.maxMp, maxMp:info.maxMp,
@@ -3543,7 +3552,7 @@ function initHostWorld(){
   nextPortalAt = Date.now() + portalNextDelay();
   nextEncAt = Date.now() + 30000 + Math.random()*45000;
   world.npcs.clear();
-  addPlayer('host', G.playerName, { gender:G.gender, root:[G.root], control:G.control }, true);
+  addPlayer('host', G.playerName, { gender:G.gender, root:[G.root], control:G.control, ff:G.ff }, true);
 }
 
 function addPlayer(id, name, opt, isHostPlayer){
@@ -3979,6 +3988,7 @@ function killPlayerSelf(p, byName, cause){
   p.respawnAt = Date.now() + 5000;
   p.exp = Math.floor(p.exp*0.9);
   p.deaths++;
+  p.grudge = Math.floor(p.grudge*0.5);
   p.meditating = false;
   p.trib = null;
   emit({e:'death', x:p.x, y:p.y, id:p.id, name:p.name, by:byName||''});
@@ -4044,6 +4054,10 @@ function damagePlayer(target, raw, attackerId, el){
       return;
     }
   }
+  // 切磋不受友伤开关影响
+  const sparring = attacker && target.sparWith === attacker.id && attacker.sparWith === target.id;
+  // 友伤开关：关闭时群攻 / 飞剑不再波及身边道友（在扣盾、扣血之前直接拦下）
+  if(!sparring && attacker && attacker.id !== target.id && !attacker.ff) return;
   const em = elemMult(el, activeEl(target));
   let real = Math.max(1, Math.round(raw*em - target.def*0.4));
   if(target.shield > 0){
@@ -4055,7 +4069,6 @@ function damagePlayer(target, raw, attackerId, el){
   if(target.lock && target.lock.hp) return;
 
   // 切磋：双方都收着力，打到剩 1 点即止，不积煞气
-  const sparring = attacker && target.sparWith === attacker.id && attacker.sparWith === target.id;
   if(sparring){
     const soft = Math.max(1, Math.round(real*0.6));
     target.hp -= soft;
@@ -4077,7 +4090,7 @@ function damagePlayer(target, raw, attackerId, el){
   emit({e:'pvpHit', x:target.x, y:target.y-16, dmg:real, id:target.id, atk:attackerId, vuln:em>1.1, resist:em<0.9});
   if(attacker && attacker.id !== target.id){
     if(!(attacker.lock && attacker.lock.grudge)){
-      attacker.grudge = Math.min(130, attacker.grudge + 9);
+      attacker.grudge = Math.min(130, attacker.grudge + 7);
       if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
     }
   }
@@ -4104,6 +4117,7 @@ function handlePlayerKill(target, attacker){
       attacker.deathCause = 'normal';
       attacker.respawnAt = Date.now() + 5000;
       attacker.exp = Math.floor(attacker.exp*0.8);
+      attacker.grudge = Math.floor(attacker.grudge*0.5);
       attacker.deaths++;
       attacker.trib = null;
       emit({e:'death', x:attacker.x, y:attacker.y, id:attacker.id, name:attacker.name, by:mainElder.elder});
@@ -4117,7 +4131,7 @@ function handlePlayerKill(target, attacker){
     if(as && dist(attacker.x,attacker.y,as.x,as.y) < 175){
       attacker.exp = Math.floor(attacker.exp*0.72);
       attacker.stones = Math.max(0, attacker.stones - Math.round(attacker.stones*0.5));
-      if(!(attacker.lock && attacker.lock.grudge)) attacker.grudge = Math.min(130, attacker.grudge + 40);
+      if(!(attacker.lock && attacker.lock.grudge)) attacker.grudge = Math.min(130, attacker.grudge + 50);
       emit({e:'sys', text:`宗门执法堂：门内行凶，罚没半数灵石、两成八修为`, id:attacker.id});
       if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
     }
@@ -4134,11 +4148,12 @@ function handlePlayerKill(target, attacker){
   target.deaths++;
   target.meditating = false;
   target.trib = null;
+  target.grudge = Math.floor(target.grudge*0.5);
   target.area = 'world';
   target.secretEl = null;
   if(attacker && attacker.id !== target.id){
     if(!(attacker.lock && attacker.lock.grudge)){
-      attacker.grudge = Math.min(130, attacker.grudge + 12);
+      attacker.grudge = Math.min(130, attacker.grudge + 22);
       if(attacker.grudge >= 100 && !attacker.trib) startTribulation(attacker);
     }
   }
@@ -4634,6 +4649,11 @@ function hostCheat(id, action, payload){
     p.mp = Math.min(p.mp, p.maxMp);
     if(p.preset) emit({e:'sys', text:CHEAT_PRESETS[p.preset].name+' 已启', id:p.id});
   }
+}
+
+function hostFF(id, on){
+  const p = world.players.get(id);
+  if(p) p.ff = !!on;
 }
 
 function hostControl(id, control){
@@ -5817,8 +5837,29 @@ function closeSettings(){
 }
 function buildSettingsPanel(){
   buildCtrlOptions();
+  buildFFRow();
   buildAchList();
   buildBindList();
+}
+
+/* 友伤开关：关闭时自己的群攻 / 飞剑不再波及其他道友 */
+function readFFSetting(){
+  try{ return localStorage.getItem('qw_ff_v1')==='1'; }catch(e){ return false; }
+}
+function buildFFRow(){
+  const b = $('ffToggle');
+  if(!b) return;
+  b.textContent = G.ff ? '开启' : '关闭';
+  b.onclick = toggleFF;
+}
+function toggleFF(){
+  G.ff = !G.ff;
+  try{ localStorage.setItem('qw_ff_v1', G.ff?'1':'0'); }catch(e){}
+  const me = getSelf();
+  if(me) me.ff = G.ff;
+  if(!G.isHost) send({type:'ff', on:G.ff});
+  buildFFRow();
+  toast('友伤：'+(G.ff?'开启（会伤到道友）':'关闭（不会伤到道友）'), G.ff?'thunder':'jade');
 }
 
 /* 操作方式三选一（与登录页同一套模式） */
@@ -5946,6 +5987,8 @@ function tutSteps(){
       d:'走到青云坊市按 '+k('shop')+' 买卖丹药与草药；靠近宗门山门按 '+k('trial')+' 试炼，入宗后按 '+k('sect')+' 放宗门秘法。' },
     { t:'秘境与雷劫',
       d:'金色传送门每半分钟到一分钟随机换位，踏入即进入对应五行的秘境，击败 BOSS 可习得秘境秘法。主动攻击道友会积累煞气，满 100 会引来雷劫，出手前想清楚。' },
+    { t:'与道友同行',
+      d:'按 '+k('settings')+' 进设置 → 战斗 → 友伤（默认关闭）：关闭时群攻与飞剑不会伤到身边道友，切磋照常。要主动斗法再打开，击杀道友积的煞气更多。' },
     { t:'出发吧',
       d:'教程结束。按 '+k('settings')+' 可随时查看或修改键位，祝道友早日化神。' },
   ];
