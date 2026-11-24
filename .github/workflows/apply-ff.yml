@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sed -i 's/五行、技能、宗门、秘境、法宝等其余体系与新版基本一致。/五行、技能、宗门、秘境、坊市、聊天等其余体系与新版基本一致。/' ff.patch
+      - run: printf ' \n' >> ff.patch
       - run: git apply --whitespace=nowarn ff.patch
       - run: |
           grep -q 'qw_ff_v1' world_new.html
