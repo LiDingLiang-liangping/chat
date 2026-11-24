@@ -1,0 +1,25 @@
+name: diag-ff
+on:
+  push:
+    paths:
+      - '.github/workflows/diag-ff.yml'
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sed -i 's/五行、技能、宗门、秘境、法宝等其余体系与新版基本一致。/五行、技能、宗门、秘境、坊市、聊天等其余体系与新版基本一致。/' ff.patch
+          printf ' \n' >> ff.patch
+          git apply --check ff.patch 2>diag.txt || true
+          git apply ff.patch 2>>diag.txt || true
+          echo "after: $(wc -c world_new.html)" >>diag.txt
+          cat diag.txt
+      - run: |
+          git config user.name 'diag-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add diag.txt
+          git commit -m 'diag: patch result'
+          git push
