@@ -1,0 +1,22 @@
+name: deploy-ff
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-ff.yml'
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl -fsSL 'https://aka.doubaocdn.com/s/zRhaoFfUke' -o world_new.html
+      - run: curl -fsSL 'https://aka.doubaocdn.com/s/W9tWZKQAqE' -o world.md
+      - run: |
+          ls -l world_new.html world.md
+          git config user.name 'patch-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm -q .github/workflows/deploy-ff.yml
+          git add world_new.html world.md
+          git commit -m 'deploy: 友伤与煞气更新'
+          git push
