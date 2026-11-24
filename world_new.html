@@ -188,6 +188,15 @@ input{font-family:inherit}
 #chatSend{background:transparent;border:none;border-left:1px solid rgba(255,255,255,.07);
   color:var(--jade);font-size:11.5px;padding:0 12px;letter-spacing:1px}
 #chatSend:hover{background:rgba(121,224,189,.08)}
+.chat-tools{display:flex;border-top:1px solid rgba(255,255,255,.06)}
+.chat-tools button{flex:1;background:transparent;border:none;border-right:1px solid rgba(255,255,255,.05);
+  color:#8fa39a;font-size:10px;padding:5px 0;letter-spacing:1px;white-space:nowrap}
+.chat-tools button:hover{color:var(--gold);background:rgba(217,192,138,.08)}
+#giftBtn{color:#e8cf8a;flex:1.2}
+#giftList .gift-empty{font-size:11px;color:var(--muted);text-align:center;padding:18px 0}
+#giftList .gbtn{padding:4px 7px;font-size:10px;border:1px solid rgba(217,192,138,.35);
+  background:rgba(217,192,138,.1);color:#e8cf8a;border-radius:2px;margin-left:2px}
+#giftList .gbtn:disabled{opacity:.35;border-color:rgba(255,255,255,.12);background:transparent;color:#7e9188}
 
 /* 草药面板 */
 #herbPanel{position:absolute;right:14px;bottom:96px;width:188px;padding:9px 10px;
@@ -251,11 +260,11 @@ input{font-family:inherit}
 #mobileSkills .ms .mk{position:absolute;bottom:-1px;right:1px;font-size:8px;color:var(--gold)}
 
 /* 弹窗 */
-#shopPanel,#sectPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;
+#shopPanel,#sectPanel,#giftPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;
   width:min(390px,92vw);max-height:82vh;overflow-y:auto;
   background:rgba(10,22,19,.985);border:1px solid var(--line);border-radius:4px;padding:20px;
   box-shadow:0 20px 70px rgba(0,0,0,.6);backdrop-filter:blur(8px)}
-#shopPanel h3,#sectPanel h3{font-family:"Songti SC","STSong",serif;font-size:19px;letter-spacing:4px;color:var(--gold-2);
+#shopPanel h3,#sectPanel h3,#giftPanel h3{font-family:"Songti SC","STSong",serif;font-size:19px;letter-spacing:4px;color:var(--gold-2);
   text-align:center;margin-bottom:4px}
 .shop-sub,.sect-sub{text-align:center;font-size:10.5px;color:var(--muted);margin-bottom:14px}
 .shop-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -266,9 +275,9 @@ input{font-family:inherit}
 .shop-item button{padding:6px 10px;font-size:11px;border:1px solid rgba(217,192,138,.4);
   background:rgba(217,192,138,.08);color:var(--gold-2);border-radius:2px;white-space:nowrap}
 .shop-item button:hover{background:rgba(217,192,138,.2)}
-#shopClose,#sectClose{width:100%;margin-top:14px;padding:9px;background:transparent;border:1px solid rgba(255,255,255,.14);
+#shopClose,#sectClose,#giftClose{width:100%;margin-top:14px;padding:9px;background:transparent;border:1px solid rgba(255,255,255,.14);
   color:#b9c7c0;font-size:12px;border-radius:2px}
-#shopClose:hover,#sectClose:hover{background:rgba(255,255,255,.06)}
+#shopClose:hover,#sectClose:hover,#giftClose:hover{background:rgba(255,255,255,.06)}
 .peak-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
 .peak-item .pi{flex:1}
 .peak-item .pt{font-size:13px;color:#e8e2cf}
@@ -494,6 +503,14 @@ input{font-family:inherit}
         <input id="chatInput" maxlength="80" placeholder="传音入密…（Enter 发送）">
         <button id="chatSend">发送</button>
       </div>
+      <div class="chat-tools">
+        <button class="emote-btn" data-emote="作揖">作揖</button>
+        <button class="emote-btn" data-emote="抱拳">抱拳</button>
+        <button class="emote-btn" data-emote="挥手">挥手</button>
+        <button class="emote-btn" data-emote="鼓掌">鼓掌</button>
+        <button class="emote-btn" data-emote="大笑">大笑</button>
+        <button id="giftBtn">赠礼</button>
+      </div>
     </div>
   </div>
 
@@ -597,6 +614,14 @@ input{font-family:inherit}
   <div class="shop-sub" style="margin-top:14px">法宝炼制 · 3 碎片 + 200 灵石，一人只可佩一件</div>
   <div id="artList"></div>
   <button id="shopClose">离开坊市</button>
+</div>
+
+<!-- ================= 赠礼 ================= -->
+<div id="giftPanel" class="hidden">
+  <h3>赠 礼</h3>
+  <div class="shop-sub">把丹药与法宝碎片送给同洞天道友</div>
+  <div id="giftList"></div>
+  <button id="giftClose">关 闭</button>
 </div>
 
 <!-- ================= 宗门加入 ================= -->
@@ -958,6 +983,8 @@ const ACH_DEFS = [
   { id:'spar',   name:'点到为止', desc:'切磋三胜',          title:'以武会友', cond:p=>p.sparWins>=3 },
   { id:'enc',    name:'奇遇有缘', desc:'遇见 3 位奇人',     title:'有缘人',   cond:p=>p.encounters>=3 },
   { id:'devil',  name:'一念成魔', desc:'入魔一次',          title:'魔头',     cond:p=>!!p.devil||!!p.devilCause },
+  { id:'teacher',name:'好为人师', desc:'收下一名徒弟',      title:'引路人',   cond:p=>!!p.apprenticeId },
+  { id:'student',name:'尊师重道', desc:'拜入一位师父门下',  title:'门下弟子', cond:p=>!!p.masterId },
 ];
 const ACH_BY_ID = {};
 for(const a of ACH_DEFS) ACH_BY_ID[a.id] = a;
@@ -972,6 +999,93 @@ const ART_DEFS = [
 const ART_BY_ID = {};
 for(const a of ART_DEFS) ART_BY_ID[a.id] = a;
 const ART_COST_SHARD = 3, ART_COST_STONE = 200;
+
+/* ---------------- 快捷动作 / 表情 ---------------- */
+const EMOTE_LIST = ['作揖','抱拳','挥手','鼓掌','大笑'];
+
+/* ---------------- 聊天气泡 / 快捷动作 ---------------- */
+function bubbleFor(id, text, kind){
+  const p = world.players.get(id);
+  if(!p) return;
+  p.bubble = { text:String(text||'').slice(0,80), kind:kind||'chat',
+    until: Date.now() + (kind==='emote' ? 3200 : 5200) };
+}
+function hostEmote(id, text){
+  const p = world.players.get(id);
+  if(!p || p.dead) return;
+  const t = String(text||'');
+  if(EMOTE_LIST.indexOf(t) < 0) return;
+  bubbleFor(id, t, 'emote');
+  emit({e:'emote', id, x:p.x, y:p.y, text:t, name:p.name});
+}
+
+/* ---------------- 赠礼 ---------------- */
+function hostGift(id, targetId, kind){
+  const p = world.players.get(id);
+  const t = world.players.get(targetId);
+  if(!p || !t || p.id === t.id) return;
+  const info = {
+    heal:  { key:'pillsHeal', name:'回春丹' },
+    exp:   { key:'pillsExp',  name:'聚气丹' },
+    shard: { key:'shards',    name:'法宝碎片' },
+  }[kind];
+  if(!info) return;
+  if(t.dead){ emit({e:'sys', text:'对方魂魄未归，稍后再赠', id}); return; }
+  if((p[info.key]||0) < 1){ emit({e:'sys', text:`没有${info.name}可赠`, id}); return; }
+  p[info.key]--;
+  t[info.key] = (t[info.key]||0) + 1;
+  emit({e:'gift', x:t.x, y:t.y, from:p.name, to:t.name, item:info.name,
+    id:t.id, fromId:p.id});
+  emit({e:'sys', text:`你赠予 ${t.name} ${info.name} ×1`, id, gold:true});
+  emit({e:'sys', text:`${p.name} 赠你 ${info.name} ×1`, id:t.id, gold:true});
+}
+
+/* ---------------- 师徒（雏形） ---------------- */
+function linkMentor(m, a){
+  m.apprenticeId = a.id; m.apprenticeName = a.name;
+  a.masterId = m.id; a.masterName = m.name;
+  m.mentorInvite = null; a.mentorInvite = null;
+  recalcPlayer(m); recalcPlayer(a);
+  checkAch(m); checkAch(a);
+  emit({e:'mentor', x:a.x, y:a.y, master:m.name, ap:a.name, masterId:m.id, apId:a.id});
+  emit({e:'sys', text:`${a.name} 拜你为师，师徒之礼已成`, id:m.id, gold:true});
+  emit({e:'sys', text:`你已拜入 ${m.name} 门下`, id:a.id, gold:true});
+}
+function hostMentor(id){
+  const p = world.players.get(id);
+  if(!p || p.dead) return;
+  const now = Date.now();
+  // 先看有没有待自己应允的请帖
+  if(p.mentorInvite && now - p.mentorInviteAt < 12000){
+    const from = world.players.get(p.mentorInvite.from);
+    if(from){
+      const m = from.realm >= p.realm ? from : p;
+      const a = m === from ? p : from;
+      if(m.apprenticeId || a.masterId){
+        emit({e:'sys', text:'你们已各自有师门牵绊', id});
+      }else if(m.realm < 9 || a.realm > 8){
+        emit({e:'sys', text:'须筑基以上方可收炼气一辈为徒', id});
+      }else{
+        linkMentor(m, a);
+      }
+      p.mentorInvite = null;
+      return;
+    }
+    p.mentorInvite = null;
+  }
+  if(p.masterId){ emit({e:'sys', text:`你已师从 ${p.masterName}`, id}); return; }
+  if(p.apprenticeId){ emit({e:'sys', text:`你已有徒弟 ${p.apprenticeName}`, id}); return; }
+  const o = nearestPlayer(p, 240);
+  if(!o){ emit({e:'sys', text:'附近没有可结师徒的道友', id}); return; }
+  if(o.masterId || o.apprenticeId){ emit({e:'sys', text:`${o.name} 已有师门牵绊`, id}); return; }
+  const pM = p.realm >= 9, oM = o.realm >= 9;
+  if(pM === oM){ emit({e:'sys', text:'辈分相近，平辈论交即可', id}); return; }
+  const master = pM ? p : o, ap = pM ? o : p;
+  o.mentorInvite = { from:p.id, role: pM ? 'master' : 'apprentice', at: now };
+  o.mentorInviteAt = now;
+  emit({e:'sys', text:`${p.name} 愿${pM?'收你为徒':'拜你为师'}，按 ${keyLabel(BINDS.mentor)} 应允`, id:o.id, gold:true});
+  emit({e:'sys', text:`已向 ${o.name} 发出${pM?'收徒':'拜师'}之请`, id});
+}
 
 /* ---------------- 随机奇遇 ---------------- */
 const ENCOUNTER_DEFS = [
@@ -992,7 +1106,7 @@ const DEFAULT_BINDS = {
   secret:'Digit0', sect:'KeyQ',
   meditate:'KeyR', gather:'KeyE', herb:'KeyH',
   healPill:'KeyU', expPill:'KeyJ', thunder:'KeyG', break:'KeyB', swap:'KeyX',
-  shop:'KeyF', trial:'KeyT', leaveSect:'KeyK', rage:'KeyV', spar:'KeyC',
+  shop:'KeyF', trial:'KeyT', leaveSect:'KeyK', rage:'KeyV', spar:'KeyC', mentor:'KeyL',
   settings:'KeyO', control:'KeyP', mute:'KeyM', chat:'Enter',
 };
 
@@ -1025,6 +1139,7 @@ const BIND_ACTIONS = [
   { id:'trial',    name:'宗门试炼',   group:'交互' },
   { id:'leaveSect',name:'退出宗门',   group:'交互' },
   { id:'spar',     name:'切磋',       group:'交互' },
+  { id:'mentor',   name:'拜师/收徒',  group:'交互' },
   { id:'rage',     name:'魔鬼狂暴',   group:'交互' },
   { id:'settings', name:'打开设置',   group:'系统' },
   { id:'control',  name:'切换操作方式', group:'系统' },
@@ -2320,6 +2435,66 @@ function drawPlayer(p, isSelf){
     ctx.strokeStyle = hexA(elColor(rootEl),.6); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(x, y-22, 19, 0, Math.PI*2); ctx.stroke();
   }
+  drawBubble(p, x, y);
+}
+
+/* ---------------- 头顶气泡（聊天 / 表情） ---------------- */
+function drawBubble(p, x, y){
+  const b = p.bubble;
+  if(!b) return;
+  const left = b.until - Date.now();
+  if(left <= 0){ p.bubble = null; return; }
+  const emote = b.kind === 'emote';
+  const font = emote ? '12px system-ui' : '11px system-ui';
+  const maxW = emote ? 84 : 138;
+  ctx.font = font;
+  const chars = Array.from(String(b.text||''));
+  const lines = [];
+  let cur = '';
+  for(const ch of chars){
+    if(ctx.measureText(cur + ch).width > maxW && cur){ lines.push(cur); cur = ch; }
+    else cur += ch;
+  }
+  if(cur) lines.push(cur);
+  if(lines.length > 3){
+    lines.length = 3;
+    lines[2] = lines[2].slice(0, -1) + '…';
+  }
+  let wid = 0;
+  for(const ln of lines) wid = Math.max(wid, ctx.measureText(ln).width);
+  const pad = emote ? 8 : 7, lh = emote ? 16 : 15;
+  const w = Math.min(maxW + pad*2, wid + pad*2);
+  const h = lines.length*lh + pad*2 - 2;
+  const bx = x - w/2;
+  const by = y - 70 - h;
+  const alpha = Math.min(1, left/500);
+  const col = emote ? '#e8cf8a' : '#9fd3b8';
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // 框
+  ctx.fillStyle = 'rgba(8,18,15,.9)';
+  ctx.strokeStyle = emote ? 'rgba(217,192,138,.7)' : 'rgba(159,211,184,.5)';
+  ctx.lineWidth = 1;
+  const r = 5;
+  ctx.beginPath();
+  ctx.moveTo(bx+r, by);
+  ctx.lineTo(bx+w-r, by); ctx.quadraticCurveTo(bx+w, by, bx+w, by+r);
+  ctx.lineTo(bx+w, by+h-r); ctx.quadraticCurveTo(bx+w, by+h, bx+w-r, by+h);
+  ctx.lineTo(bx+r, by+h); ctx.quadraticCurveTo(bx, by+h, bx, by+h-r);
+  ctx.lineTo(bx, by+r); ctx.quadraticCurveTo(bx, by, bx+r, by);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // 小尾巴
+  ctx.beginPath();
+  ctx.moveTo(x-5, by+h-1); ctx.lineTo(x, by+h+7); ctx.lineTo(x+5, by+h-1);
+  ctx.closePath(); ctx.fill();
+  // 文字
+  ctx.fillStyle = emote ? '#f2e2b8' : '#dfeade';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  lines.forEach((ln, i)=>{
+    ctx.fillText(ln, x, by + pad + i*lh + (emote?1:0));
+  });
+  ctx.restore();
 }
 
 /* ---------------- 弹道 ---------------- */
@@ -2823,6 +2998,8 @@ function serPlayer(p){
     ach:p.ach||[], title:p.title||'',
     bossKills:p.bossKills||0, sparWins:p.sparWins||0, encounters:p.encounters||0,
     sparWith:p.sparWith||null,
+    masterId:p.masterId||null, masterName:p.masterName||'',
+    apprenticeId:p.apprenticeId||null, apprenticeName:p.apprenticeName||'',
     meditating:p.meditating, dead:p.dead,
     respawnIn: p.dead ? Math.max(0, Math.ceil((p.respawnAt-Date.now())/1000)) : 0,
     cd:{ ...p.cd },
@@ -2844,6 +3021,16 @@ function serItem(it){
     x:Math.round(it.x), y:Math.round(it.y), alive:it.alive, phase:it.phase };
 }
 
+/* ---------------- 师徒关系清理 ---------------- */
+function clearMentorLinks(p){
+  const m = p.masterId ? world.players.get(p.masterId) : null;
+  const a = p.apprenticeId ? world.players.get(p.apprenticeId) : null;
+  if(m && m.apprenticeId === p.id){ m.apprenticeId = null; m.apprenticeName = ''; recalcPlayer(m); }
+  if(a && a.masterId === p.id){ a.masterId = null; a.masterName = ''; recalcPlayer(a); }
+  p.masterId = null; p.masterName = '';
+  p.apprenticeId = null; p.apprenticeName = '';
+}
+
 /* ---------------- 房主连接 ---------------- */
 function setupHostConn(conn){
   conn.on('open', ()=>{ conns.set(conn.peer, conn); });
@@ -2852,6 +3039,7 @@ function setupHostConn(conn){
     conns.delete(conn.peer);
     const p = world.players.get(conn.peer);
     if(p){
+      clearMentorLinks(p);
       world.players.delete(conn.peer);
       broadcast({ type:'sys', text:`${p.name} 离开了青云界` });
       addSys(`${p.name} 离开了青云界`);
@@ -2907,6 +3095,9 @@ function handleHostData(conn, d){
     case 'joinsect': hostJoinSect(id, d.sectId, Number(d.peak)|0); break;
     case 'leavesect': hostLeaveSect(id); break;
     case 'spar': hostSpar(id); break;
+    case 'emote': hostEmote(id, d.text); break;
+    case 'gift': hostGift(id, d.target, d.kind); break;
+    case 'mentor': hostMentor(id); break;
     case 'title': hostTitle(id, d.title); break;
     case 'art': hostArt(id, d.action, d.art); break;
     case 'ping': try{ conn.send({type:'pong', t:d.t}); }catch(e){} break;
@@ -2945,7 +3136,7 @@ function handleClientData(d){
   switch(d.type){
     case 'init': onInit(d); break;
     case 'snap': onSnapshot(d); break;
-    case 'chat': addChat(d.name, d.text, d.id===G.selfId); break;
+    case 'chat': addChat(d.name, d.text, d.id===G.selfId); bubbleFor(d.id, d.text, 'chat'); break;
     case 'sys': addSys(d.text, d.gold?'gold':''); break;
     case 'pong':
       if(d.t) G.ping = Math.max(1, Math.round(performance.now()-d.t));
@@ -3162,6 +3353,8 @@ function makePlayer(id,name,x,y,opt){
     ach:[], title:'',
     bossKills:0, sparWins:0, encounters:0,
     sparWith:null, sparUntil:0, sparInvite:null, sparInviteAt:0,
+    masterId:null, masterName:'', apprenticeId:null, apprenticeName:'',
+    mentorInvite:null, mentorInviteAt:0,
     meditating:false, dead:false, respawnAt:0,
     cd:{}, aim:0, attacking:0,
     inp:null, lastCombat:0,
@@ -3184,6 +3377,9 @@ function recalcPlayer(p){
   else p.expRate = 1;
   const artD = p.art ? ART_BY_ID[p.art] : null;
   if(artD){ hpB += artD.hp||0; atkB += artD.atk||0; }
+  // 师徒：徒弟修为 +10%，师父气血上限 +5%
+  if(p.masterId && p.masterId !== p.id) p.expRate *= 1.1;
+  if(p.apprenticeId && p.apprenticeId !== p.id) hpB += 0.05;
   p.realmName = info.name;
   p.maxHp = Math.round(info.maxHp*(1+hpB));
   p.maxMp = Math.round(info.maxMp*(1+mpB));
@@ -4515,6 +4711,7 @@ function hostChat(id, text){
   const t = String(text||'').trim().slice(0,80);
   if(!t) return;
   addChat(p.name, t, id===G.selfId);
+  bubbleFor(id, t, 'chat');
   broadcast({ type:'chat', id, name:p.name, text:t });
 }
 
@@ -4711,6 +4908,20 @@ function applyEvent(ev){
         if(d) toast(`已佩 ${d.name} · ${d.desc}`, 'gold');
       }
       break;
+    case 'emote':
+      bubbleFor(ev.id, ev.text, 'emote');
+      break;
+    case 'gift':
+      ring(ev.x, ev.y, 'rgba(255,214,120,.7)', 55, 0.45);
+      floatText(ev.x, ev.y-46, '赠 '+ev.item, '#ffd166', 12);
+      if(ev.id === G.selfId) toast('收到 '+ev.from+' 的 '+ev.item, 'gold');
+      if(ev.fromId === G.selfId) toast('已赠 '+ev.to+' '+ev.item, 'gold');
+      break;
+    case 'mentor':
+      ring(ev.x, ev.y, 'rgba(200,180,255,.75)', 80, 0.6);
+      if(ev.masterId === G.selfId || ev.apId === G.selfId)
+        toast(`${ev.ap} 拜 ${ev.master} 为师`, 'gold');
+      break;
     case 'portalMove':
       addSys('秘境传送门已变换方位','');
       break;
@@ -4849,6 +5060,18 @@ function tickClientVisuals(dt){
 }
 
 /* ---------------- 发送 ---------------- */
+function emote(text){
+  if(G.mode!=='playing') return;
+  if(G.isHost) hostEmote(G.selfId, text); else send({type:'emote', text});
+}
+function giftTo(targetId, kind){
+  if(G.mode!=='playing' || !targetId) return;
+  if(G.isHost) hostGift(G.selfId, targetId, kind); else send({type:'gift', target:targetId, kind});
+}
+function mentor(){
+  if(G.mode!=='playing') return;
+  if(G.isHost) hostMentor(G.selfId); else send({type:'mentor'});
+}
 function spar(){
   if(G.mode!=='playing') return;
   if(G.isHost) hostSpar(G.selfId); else send({type:'spar'});
@@ -5068,6 +5291,7 @@ function renderLoginHelp(){
     '<b>法宝</b>：斩妖掉落碎片，3 碎片 + 200 灵石炼一件，只能佩一件（攻击／气血／移速）<br>'+
     '<b>奇遇</b>：第二、三环偶现光柱奇人，走近即得赠礼<br>'+
     '<b>称号</b>：达成成就自动获称号，设置面板里可任选一个佩戴<br>'+
+    '<b>社交</b>：聊天会在头顶冒气泡；聊天栏下可作揖 / 抱拳 / 挥手 / 鼓掌 / 大笑；「赠礼」把丹药、碎片送给道友；靠近境界差一辈的道友按 '+k('mentor')+' 结师徒<br>'+
     '<b>聊天</b>：'+k('chat')+' 输入并发送<br>'+
     '<b>设置</b>：进游戏后点右上角 ⚙ 或按 '+k('settings')+'，可改键位、切换操作方式、重看新手教程';
 }
@@ -5278,6 +5502,16 @@ function updateHUD(){
   tutorialTick(me, x, y);
 }
 
+function mentorCandidate(me){
+  for(const o of world.players.values()){
+    if(o.id===me.id || o.dead) continue;
+    if(o.area!==me.area) continue;
+    if(dist(me.x,me.y,o.x,o.y) > 240) continue;
+    if(o.masterId || o.apprenticeId) continue;
+    if((me.realm>=9 && o.realm<=8) || (me.realm<=8 && o.realm>=9)) return true;
+  }
+  return false;
+}
 function updateHint(me, x, y){
   let hint = '';
   // 奇遇 NPC 优先
@@ -5294,6 +5528,8 @@ function updateHint(me, x, y){
     hint = '走近'+nearNpc.name+'（流光处）可获赠礼';
   }else if(invited){
     hint = invited.name+' 邀你切磋，按 '+bindLabel('spar')+' 应战';
+  }else if(!me.masterId && !me.apprenticeId && mentorCandidate(me)){
+    hint = '附近道友辈分有别，按 '+bindLabel('mentor')+' 收徒 / 拜师';
   }else{
     const site = sectSiteAt(x,y);
     if(site && !me.sect && G.sectsOn) hint = '按 '+bindLabel('trial')+' 接受'+site.sect.name+'试炼';
@@ -5335,6 +5571,16 @@ function updateOnline(){
       tb.textContent = '「'+p.title+'」';
       tb.style.color = '#e8cf8a';
       li.appendChild(tb);
+    }
+    if(p.masterName){
+      const mb = document.createElement('span'); mb.className='eb';
+      mb.textContent = '师从'+p.masterName; mb.style.color = '#8fa9c9';
+      li.appendChild(mb);
+    }
+    if(p.apprenticeName){
+      const mb = document.createElement('span'); mb.className='eb';
+      mb.textContent = '徒'+p.apprenticeName; mb.style.color = '#9fd3b8';
+      li.appendChild(mb);
     }
     if(p.sect){
       const eb = document.createElement('span'); eb.className='eb';
@@ -5421,6 +5667,56 @@ function buildAchList(){
   btn.onclick = ()=>{ setTitle(''); setTimeout(()=>{ buildAchList(); updateHUD(); }, 150); };
   row.appendChild(info); row.appendChild(btn);
   box.appendChild(row);
+}
+
+function buildGiftList(){
+  const box = $('giftList');
+  if(!box) return;
+  const me = getSelf();
+  if(!me){ box.innerHTML=''; return; }
+  const others = [...world.players.values()].filter(p=>p.id!==me.id);
+  if(!others.length){
+    box.innerHTML = '<div class="gift-empty">洞天里还没有其他道友</div>';
+    return;
+  }
+  box.innerHTML = '';
+  for(const p of others){
+    const row = document.createElement('div');
+    row.className = 'shop-item';
+    const si = document.createElement('div'); si.className='si'; si.textContent = '🎁';
+    const info = document.createElement('div'); info.className='info';
+    const t = document.createElement('div'); t.className='t'; t.textContent = p.name;
+    const d = document.createElement('div'); d.className='d';
+    d.textContent = p.realmName + (p.masterName?' · 师从'+p.masterName:'') + (p.apprenticeName?' · 收徒'+p.apprenticeName:'');
+    info.appendChild(t); info.appendChild(d);
+    const wrap = document.createElement('div');
+    const opts = [
+      { kind:'heal',  label:'💊', n:me.pillsHeal||0 },
+      { kind:'exp',   label:'🔮', n:me.pillsExp||0 },
+      { kind:'shard', label:'◆',  n:me.shards||0 },
+    ];
+    for(const o of opts){
+      const b = document.createElement('button');
+      b.className='gbtn'; b.textContent = o.label + ' ' + o.n;
+      b.disabled = o.n < 1;
+      b.title = {heal:'赠回春丹',exp:'赠聚气丹',shard:'赠法宝碎片'}[o.kind];
+      b.onclick = ()=>{ giftTo(p.id, o.kind); setTimeout(()=>{ buildGiftList(); updateHUD(); }, 180); };
+      wrap.appendChild(b);
+    }
+    row.appendChild(si); row.appendChild(info); row.appendChild(wrap);
+    box.appendChild(row);
+  }
+}
+function openGift(){
+  if(G.mode!=='playing') return;
+  closeShop();
+  G.giftOpen = true;
+  $('giftPanel').classList.remove('hidden');
+  buildGiftList();
+}
+function closeGift(){
+  G.giftOpen = false;
+  $('giftPanel').classList.add('hidden');
 }
 
 function openShop(){ G.shopOpen = true; buildArtList(); $('shopPanel').classList.remove('hidden'); $('shopBtn').classList.add('hidden'); }
@@ -5869,6 +6165,7 @@ document.addEventListener('keydown', e=>{
     closeSettings();
     closeShop();
     closeSectPanel();
+    closeGift();
     $('chatInput').blur();
     return;
   }
@@ -5894,6 +6191,7 @@ document.addEventListener('keydown', e=>{
         case 'trial': tryTrial(); break;
         case 'leaveSect': leaveSect(); break;
         case 'spar': spar(); break;
+        case 'mentor': mentor(); break;
         case 'rage': toggleRage(); break;
         case 'shop': toggleShop(); break;
         case 'control': cycleControl(); break;
@@ -5953,6 +6251,11 @@ $('chatSend').onclick = ()=>{
   sendChat(text);
   $('chatInput').value = '';
 };
+document.querySelectorAll('.emote-btn').forEach(el=>{
+  el.onclick = ()=> emote(el.dataset.emote);
+});
+$('giftBtn').onclick = ()=> openGift();
+$('giftClose').onclick = ()=> closeGift();
 
 /* ---------------- 触屏摇杆 ---------------- */
 (function setupStick(){
