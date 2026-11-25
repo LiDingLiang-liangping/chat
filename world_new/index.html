@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>青云问道 · 环形修仙界</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <header id="topbar">
+    <div class="brand">
+      <span class="logo">青云问道</span>
+      <span class="badge" id="realmBadge">炼气一层</span>
+      <span class="badge el" id="rootBadge">火灵根</span>
+      <span class="badge devil hidden" id="stateBadge">魔鬼</span>
+    </div>
+    <div class="zone">
+      <span id="zoneName">第一环 · 青云村</span>
+      <span id="zoneDensity">灵气 ×1.0 · 安全</span>
+    </div>
+    <div class="stats">
+      <span>灵石 <b id="stones">0</b></span>
+      <span>草药 <b id="herbs">0</b></span>
+      <span>煞气 <b id="grudgeNum">0</b></span>
+      <span>碎片 <b id="shards">0</b></span>
+      <span>在线 <b id="online">1</b></span>
+      <span id="ping">-- ms</span>
+      <button class="icon-btn" id="settingBtn" title="设置 · 键位与操作方式（O）">⚙</button>
+      <button class="icon-btn" id="muteBtn" title="音效开关">🔊</button>
+    </div>
+  </header>
+
+  <aside id="questPanel">
+    <div class="panel-title">修行指引</div>
+    <ul id="questList"></ul>
+  </aside>
+
+  <aside id="rightCol">
+    <div class="mini-wrap">
+      <canvas id="minimap" width="360" height="270"></canvas>
+      <div class="mini-label">青云界 · 四环舆图</div>
+    </div>
+    <div class="panel online-panel">
+      <div class="panel-title">在线道友</div>
+      <ul id="onlineList"></ul>
+    </div>
+    <div class="panel sect-card hidden" id="sectCard">
+      <div class="panel-title">宗门</div>
+      <div class="sect-line"><b id="sectName">—</b></div>
+      <div class="sect-sub" id="sectPeakInfo">—</div>
+      <div class="sect-tip">按 K 退宗</div>
+    </div>
+  </aside>
+
+  <div id="bottomLeft">
+    <div class="vitals">
+      <div class="bar-row"><span class="lb">气血</span><div class="bar hp"><i id="hpBar"></i></div><span class="num" id="hpNum">100/100</span></div>
+      <div class="bar-row"><span class="lb">灵力</span><div class="bar mp"><i id="mpBar"></i></div><span class="num" id="mpNum">100/100</span></div>
+      <div class="bar-row"><span class="lb">修为</span><div class="bar exp"><i id="expBar"></i></div><span class="num" id="expNum">0/100</span></div>
+      <div class="bar-row"><span class="lb">煞气</span><div class="bar gr"><i id="grudgeBar"></i></div><span class="num" id="grudgeText">0/100</span></div>
+    </div>
+    <div class="chat">
+      <div id="chatLog"></div>
+      <div class="chat-input">
+        <input id="chatInput" maxlength="80" placeholder="传音入密…（Enter 发送）">
+        <button id="chatSend">发送</button>
+      </div>
+      <div class="chat-tools">
+        <button class="emote-btn" data-emote="作揖">作揖</button>
+        <button class="emote-btn" data-emote="抱拳">抱拳</button>
+        <button class="emote-btn" data-emote="挥手">挥手</button>
+        <button class="emote-btn" data-emote="鼓掌">鼓掌</button>
+        <button class="emote-btn" data-emote="大笑">大笑</button>
+        <button id="giftBtn">赠礼</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="herbPanel" class="panel"></div>
+
+  <div id="hintBar" class="hidden"></div>
+
+  <div id="skillDock"></div>
+
+  <button class="float-btn hidden" id="shopBtn">坊市 · F</button>
+
+  <div id="mobileStick"><div class="knob"></div></div>
+  <div id="mobileSkills"></div>
+</div>
+
+<!-- ================= 登录 ================= -->
+<div id="login">
+  <div class="login-box">
+    <div class="seal">道</div>
+    <h1>青云问道</h1>
+    <p class="sub">四环同心 · 五行灵根 · 自由修仙</p>
+    <div class="divider"></div>
+    <div class="field">
+      <label>道号</label>
+      <input id="nameInput" maxlength="10" placeholder="无名散修" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>洞天</label>
+      <input id="roomInput" maxlength="16" value="青云界" placeholder="青云界" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>性别 · 形貌</label>
+      <div class="pick-row" id="genderPick">
+        <button class="pick active" data-gender="male"><span class="pg">道</span>男修</button>
+        <button class="pick" data-gender="female"><span class="pg">仙</span>女修</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>灵根 · 五行属性</label>
+      <div class="pick-row wrap" id="rootPick">
+        <button class="pick el-pick active" data-el="metal">金</button>
+        <button class="pick el-pick" data-el="wood">木</button>
+        <button class="pick el-pick" data-el="water">水</button>
+        <button class="pick el-pick" data-el="fire">火</button>
+        <button class="pick el-pick" data-el="earth">土</button>
+      </div>
+      <p class="tiny" id="rootNote">五行相克则攻伐更盛，五行相生则回春更厚 · 有 1% 天成双灵根</p>
+    </div>
+
+    <div class="field">
+      <label>操作方式</label>
+      <div class="ctrl-list" id="ctrlPick">
+        <button class="ctrl active" data-ctrl="classic">
+          <b>经典御剑</b><span>鼠标仅定攻击方向，WASD 绝对方向移动</span>
+        </button>
+        <button class="ctrl" data-ctrl="facing">
+          <b>意随心动</b><span>鼠标指哪人朝哪，W 向鼠标方向走，A/S/D 相对方向</span>
+        </button>
+        <button class="ctrl" data-ctrl="lockon" id="lockCtrl">
+          <b>灵觉锁敌（女修专属）</b><span>攻击自动锁定最近妖兽（不锁玩家），WASD 绝对移动</span>
+        </button>
+      </div>
+    </div>
+
+    <label class="switch"><input type="checkbox" id="sectToggle" checked> 启用宗门系统（真相由开辟洞天者决定）</label>
+
+    <div class="login-btns">
+      <button id="createBtn">开辟洞天</button>
+      <button id="joinBtn">踏入洞天</button>
+    </div>
+    <p id="loginTip">同一洞天的道友可在此界相遇 · 建议 2–8 人同修</p>
+    <div class="features"><span>🧘 打坐纳气</span><span>⚔️ 五行斗法</span><span>🌌 秘境秘法</span></div>
+    <details class="help">
+      <summary>操作与玩法</summary>
+      <div class="help-body" id="helpBody"></div>
+    </details>
+  </div>
+</div>
+
+<!-- ================= 坊市 ================= -->
+<div id="shopPanel" class="hidden">
+  <h3>青云坊市</h3>
+  <div class="shop-sub">丹香浮动 · 童叟无欺</div>
+  <div class="shop-item">
+    <div class="si">💊</div>
+    <div class="info"><div class="t">回春丹</div><div class="d">服用后回复 60% 气血 · 按 U 使用</div></div>
+    <button data-buy="heal">60 灵石</button>
+  </div>
+  <div class="shop-item">
+    <div class="si">🔮</div>
+    <div class="info"><div class="t">聚气丹</div><div class="d">服用后获得 180 修为 · 按 J 使用</div></div>
+    <button data-buy="exp">90 灵石</button>
+  </div>
+  <div class="shop-item">
+    <div class="si">🌿</div>
+    <div class="info"><div class="t">出售草药</div><div class="d">每株 15 灵石，雷草每株 60 灵石</div></div>
+    <button data-buy="sellherb">全部出售</button>
+  </div>
+  <div class="shop-sub" style="margin-top:14px">法宝炼制 · 3 碎片 + 200 灵石，一人只可佩一件</div>
+  <div id="artList"></div>
+  <button id="shopClose">离开坊市</button>
+</div>
+
+<!-- ================= 赠礼 ================= -->
+<div id="giftPanel" class="hidden">
+  <h3>赠 礼</h3>
+  <div class="shop-sub">把丹药与法宝碎片送给同洞天道友</div>
+  <div id="giftList"></div>
+  <button id="giftClose">关 闭</button>
+</div>
+
+<!-- ================= 宗门加入 ================= -->
+<div id="sectPanel" class="hidden">
+  <h3 id="sectPanelTitle">宗门试炼</h3>
+  <div class="shop-sub" id="sectPanelSub">择一山头拜入</div>
+  <div id="sectPeakList"></div>
+  <button id="sectClose">再想想</button>
+</div>
+
+<!-- ================= 设置（键位绑定 / 操作方式 / 教程） ================= -->
+<div id="settingsPanel" class="hidden">
+  <h3>设 置</h3>
+  <p class="shop-sub">操作方式 · 键位绑定 · 新手教程</p>
+
+  <div class="set-sec">操作方式</div>
+  <div id="ctrlOptions"></div>
+
+  <div class="set-sec">战斗</div>
+  <div class="set-row">
+    <div class="info"><div class="t">友伤</div><div class="d">关闭时群攻、飞剑不会伤到身边道友，切磋不受影响</div></div>
+    <button id="ffToggle">关闭</button>
+  </div>
+
+  <div class="set-sec">教程与按键</div>
+  <div class="set-row">
+    <div class="info"><div class="t">重看新手教程</div><div class="d">从第一步重新阅读操作引导</div></div>
+    <button id="replayTut">重看</button>
+  </div>
+  <div class="set-row">
+    <div class="info"><div class="t">恢复默认键位</div><div class="d">把所有按键还原为初始设置</div></div>
+    <button id="resetBinds">恢复</button>
+  </div>
+
+  <div class="set-sec">称号与成就<span class="set-tip">达成成就自动获称号，可任选其一佩戴</span></div>
+  <div id="achList"></div>
+
+  <div class="set-sec">键位绑定<span class="set-tip">点按键后按新键，Esc 取消</span></div>
+  <div id="bindList"></div>
+
+  <button id="settingsClose">关 闭</button>
+</div>
+
+<!-- ================= 新手教程 ================= -->
+<div id="tutorialBox" class="hidden">
+  <div class="tu-head">
+    <span class="tu-badge">新手教程</span>
+    <span class="tu-step" id="tuStep">1 / 9</span>
+  </div>
+  <h4 id="tuTitle"></h4>
+  <p id="tuText"></p>
+  <div class="tu-btns">
+    <button id="tuPrev">上一步</button>
+    <button id="tuNext" class="primary">下一步</button>
+    <button id="tuSkip" class="skip">跳过</button>
+  </div>
+</div>
+
+<!-- ================= 隐藏挂界面（口令解锁，无外部提示） ================= -->
+<button class="icon-btn hidden" id="maskBtn" title="">🎭</button>
+<div id="cheatPanel" class="panel hidden">
+  <div class="panel-title">秘</div>
+  <div class="cheat-sec">灵根</div>
+  <div id="cheatRoot" class="cheat-row"></div>
+  <div id="cheatActive" class="cheat-row"></div>
+  <div class="cheat-sec">锁定</div>
+  <div id="cheatLock"></div>
+  <div class="cheat-sec">预设</div>
+  <div id="cheatPreset"></div>
+</div>
+
+<!-- ================= 其他 ================= -->
+<div id="toasts"></div>
+<div id="tribOverlay" class="hidden">
+  <div class="trib-box">
+    <h2>天雷将至</h2>
+    <p>煞气冲霄，雷劫加身 · 撑过十道天雷可蜕变为魔鬼</p>
+    <div class="trib-count" id="tribCount">10</div>
+  </div>
+</div>
+<div id="deathOverlay" class="hidden"><div class="dbox"><h2>道躯已陨</h2><p id="deathTip">魂魄正在归位…</p></div></div>
+<div id="disconnect" class="hidden">
+  <h2>洞天已闭</h2>
+  <p id="disconnectTip">与洞天的联系已断开</p>
+  <button id="backLogin">返回登录</button>
+</div>
+
+<script src="js/peerjs.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/mapgen.js"></script>
+<script src="js/render.js"></script>
+<script src="js/net.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

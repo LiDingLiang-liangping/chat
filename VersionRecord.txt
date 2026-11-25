@@ -8,12 +8,13 @@ chat-main 各界面版本记录
 
 最后打包：chat-main-20261125-2156.zip（2026-11-25 21:56）
 
-index.html  V.T-20261125-2156  2026-11-25 21:56  昵称门禁加确认键
+index.html  V.T-20261125-2213  2026-11-25 22:13  #世界入口指向 world_new/index.html
 wolf.html   V.T-20261117-2058  2026-11-17 20:58 
 go.html     V.T-20261117-2058  2026-11-17 20:58
 board.html  V.T-20261117-2058  2026-11-17 20:58
 cs.html     V.T-20261118-0936  2026-11-18 09:36  join带cs标记+买枪面板即时刷新
-world.html  V.T-20261117-2058  2026-11-17 20:58
+world.html  V.T-20261125-2213  2026-11-25 22:13  版本页新版卡片指向 world_new/index.html
 world0.html V.T-20261117-2058  2026-11-17 20:58
 world1.html V.T-20261117-2058  2026-11-17 20:58
 world_new.html V.T-20261117-2058  2026-11-17 20:58
+世界版 world_new/index.html  V.T-20261125-2213  2026-11-25 22:13  world_new.html 拆分：css/style.css + js/*.js（14 模块）

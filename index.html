@@ -384,7 +384,7 @@ function renderLinks(text){
   const rid=encodeURIComponent(currentRoom());
   const boardUrl=`board.html?room=${rid}-draw&name=${nameQ}`;
   const wolfUrl=`wolf.html?room=${rid}&name=${nameQ}`;
-  const worldUrl=`world.html?room=${rid}-world&name=${nameQ}`;
+  const worldUrl=`world_new/index.html?room=${rid}-world&name=${nameQ}`;
   const goUrl=`go.html?room=${rid}&name=${nameQ}`;
   const csUrl=`cs.html?room=${rid}&name=${nameQ}`;
   let out=esc(text);
@@ -1304,6 +1304,6 @@ window.addEventListener("beforeunload",e=>{
 })();
 </script>
 <!-- VersionInformation||版本信息 -->
-<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">index · V.T-20261125-2156</div>
+<div style="position:fixed;right:10px;bottom:8px;font-size:11px;color:#999;z-index:50;pointer-events:none;user-select:none">index · V.T-20261125-2213</div>
 </body>
 </html>
