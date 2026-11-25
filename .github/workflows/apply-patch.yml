@@ -1,0 +1,22 @@
+name: apply-patch
+on:
+  push:
+    paths:
+      - "patch/apply.patch"
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: git apply --whitespace=nowarn patch/apply.patch
+      - name: Commit and cleanup
+        run: |
+          git config user.name "patch-bot"
+          git config user.email "patch-bot@users.noreply.github.com"
+          git rm -f patch/apply.patch .github/workflows/apply-patch.yml
+          git add -A
+          git commit -m "feat(index): 初始昵称输入框增加确认键"
+          git push
