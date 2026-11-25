@@ -18,7 +18,7 @@ css_block, css_code = m.group(0), m.group(1)
 mods = []
 for mm in re.finditer(r"<script>(.*?)</script>", s, re.S):
     body = mm.group(1)
-    tag = re.match(r"\s*/\* ==== ([A-Za-z0-9._-]+) ==== */", body)
+    tag = re.match(r"\s*/\* ==== ([A-Za-z0-9._-]+) ==== \*/", body)
     if not tag:
         sys.exit("missing module marker: " + body[:60])
     name = tag.group(1)
